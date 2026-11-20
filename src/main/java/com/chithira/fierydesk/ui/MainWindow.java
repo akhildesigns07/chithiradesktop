@@ -6,6 +6,8 @@ import com.chithira.fierydesk.core.JobLog;
 import com.chithira.fierydesk.core.JobProcessor;
 import com.chithira.fierydesk.core.JobRequest;
 import com.chithira.fierydesk.core.PaperCatalog;
+import com.chithira.fierydesk.core.SheetJob;
+import com.chithira.fierydesk.core.SheetMaker;
 import com.chithira.fierydesk.document.DocumentException;
 import com.chithira.fierydesk.driver.DriverBatch;
 import com.chithira.fierydesk.driver.DriverPrintOptions;
@@ -260,23 +262,25 @@ public final class MainWindow {
     // ------------------------------------------------------------ send / skip
 
     private void sendAll(List<JobRequest> requests) {
-        saveQuietly(); // remembers last paper and sizing
+        saveQuietly(); // remembers last paper, sizing and impose choice
         updatePendingButton();
         JobProcessor p = processor;     // settings may change while this runs
         for (JobRequest r : requests) {
-            update(r.file(), "Queued", "", r.paper().name() + ", " + r.copies() + " cop" + (r.copies() == 1 ? "y" : "ies"));
+            String what = r.sheet() == null ? r.copies() + " cop" + (r.copies() == 1 ? "y" : "ies")
+                    : (r.sheet().impose() != null ? "imposing " + r.sheet().impose().quantity() + " pieces" : "front + back");
+            update(r.file(), r.back(), "Queued", "", r.paper().name() + ", " + what);
             sender.submit(() -> {
-                SwingUtilities.invokeLater(() -> update(r.file(), "Sending…", "", r.paper().name()));
+                SwingUtilities.invokeLater(() -> update(r.file(), r.back(), "Sending…", "", r.paper().name()));
                 try {
                     JobProcessor.Result res = p.process(r);
                     String details = res.submittedAs()
                             + (res.dpi() != null ? " (" + res.dpi() + " DPI)" : "")
-                            + " on " + r.paper().name() + ", " + r.copies() + " cop" + (r.copies() == 1 ? "y" : "ies")
                             + " – " + res.fileAction()
                             + (res.warnings().isEmpty() ? "" : " – " + String.join(" ", res.warnings()));
                     SwingUtilities.invokeLater(() -> {
-                        update(r.file(), "Sent", res.jobId() == null ? "?" : res.jobId(), details);
+                        update(r.file(), r.back(), "Sent", res.jobId() == null ? "?" : res.jobId(), details);
                         forget(r.file());
+                        if (r.back() != null) forget(r.back());
                         if (tray != null && !frame.isVisible()) {
                             tray.displayMessage("Sent to Fiery (Hold)", r.jobName() + " → job " + res.jobId(), TrayIcon.MessageType.INFO);
                         }
@@ -284,8 +288,9 @@ public final class MainWindow {
                 } catch (Exception e) {
                     String msg = friendly(e);
                     SwingUtilities.invokeLater(() -> {
-                        update(r.file(), "Failed", "", msg + "  (file moved to Failed folder)");
+                        update(r.file(), r.back(), "Failed", "", msg + "  (file moved to Failed folder)");
                         forget(r.file());
+                        if (r.back() != null) forget(r.back());
                         error("Could not send " + r.file().getFileName(), msg);
                     });
                 }
@@ -295,58 +300,115 @@ public final class MainWindow {
 
     /**
      * Prints a batch through the installed printer driver, the same path as Ctrl+P.
-     * After the job is handed to the Windows spooler, the file is deleted (or moved) and logged.
+     * Imposed and front/back jobs are made into a sheet PDF first (two-sided when there is a back).
+     * After the job is handed to the Windows spooler, the files are deleted (or moved) and logged.
      */
     private void printViaDriver(DriverBatch batch) {
         saveQuietly();
         updatePendingButton();
         DriverPrintOptions o = batch.options();
         String paperLabel = DriverPrinter.label(o.paper());
-        for (Path f : batch.files()) update(f, "Queued", "", "Printer " + o.printerName() + ", " + paperLabel);
+        for (Path f : batch.files()) {
+            SheetJob sj = batch.sheets().get(f);
+            update(f, sj == null ? null : sj.back(), "Queued", "", "Printer " + o.printerName() + ", " + paperLabel);
+        }
 
         PrinterJob job;
         try {
             // With the print dialog this shows the normal Windows dialog (Swing thread), like Ctrl+P
             Optional<PrinterJob> prepared = DriverPrinter.prepare(o);
             if (prepared.isEmpty()) {                       // dialog cancelled: put the files back
-                for (Path f : batch.files()) { update(f, "Waiting", "", "Print dialog cancelled"); pending.addFile(f); }
-                updatePendingButton();
+                putBack(batch, "Print dialog cancelled");
                 return;
             }
             job = prepared.get();
         } catch (Exception e) {
-            for (Path f : batch.files()) { update(f, "Waiting", "", friendly(e)); pending.addFile(f); }
-            updatePendingButton();
+            putBack(batch, friendly(e));
             error("Cannot print", friendly(e));
             return;
         }
 
         JobProcessor p = processor;
-        sender.submit(() -> DriverPrinter.printBatch(job, batch.files(), o, new DriverPrinter.Listener() {
-            @Override public void started(Path file) {
-                SwingUtilities.invokeLater(() -> update(file, "Printing…", "", "Sending to " + o.printerName()));
-            }
-            @Override public void finished(DriverPrinter.Outcome out) {
-                Path file = out.file();
-                long size = sizeOf(file);
-                String action;
-                if (out.ok()) {
-                    action = p.afterSuccess(file);
-                } else {
-                    Path moved = p.moveToFailed(file, new Exception(out.message()));
-                    action = moved.equals(file) ? "left in hot folder" : "moved to " + moved;
+        AppConfig c = cfg;
+        List<Path> plain = batch.files().stream().filter(f -> !batch.sheets().containsKey(f)).toList();
+        sender.submit(() -> {
+            // imposed / front-back sheets
+            for (Map.Entry<Path, SheetJob> e : batch.sheets().entrySet()) {
+                Path front = e.getKey();
+                SheetJob sj = e.getValue();
+                SwingUtilities.invokeLater(() -> update(front, sj.back(), "Printing…", "", "Making the sheet and sending to " + o.printerName()));
+                long size = sizeOf(front) + (sj.back() == null ? 0 : sizeOf(sj.back()));
+                boolean ok;
+                String message, action;
+                Path tmp = null;
+                try {
+                    SheetMaker.Sheets sheets = SheetMaker.make(sj, c.minDpi, c.warnDpi);
+                    tmp = Files.createTempFile("fiery-sheet-", ".pdf");
+                    Files.write(tmp, sheets.pdf());
+                    String warning = DriverPrinter.printSheetPdf(job, tmp, front.getFileName().toString(), o, sheets.copies(), sj.duplex());
+                    ok = true;
+                    message = "Printed " + sheets.summary() + warning;
+                    action = p.afterSuccess(front) + (sj.back() == null ? "" : "; back: " + p.afterSuccess(sj.back()));
+                } catch (Exception ex) {
+                    ok = false;
+                    message = friendly(ex);
+                    Path moved = p.moveToFailed(front, ex);
+                    if (sj.back() != null) p.moveToFailed(sj.back(), ex);
+                    action = moved.equals(front) ? "left in hot folder" : "moved to " + moved;
+                } finally {
+                    if (tmp != null) try { Files.deleteIfExists(tmp); } catch (IOException ignored) {}
                 }
-                JobLog.driverResult(out.ok(), file, size, o.printerName(), paperLabel, o.sizing().name(),
-                        o.copies(), o.combineIntoOneJob(), out.message(), action);
-                String details = out.message() + " on " + o.printerName() + ", " + paperLabel
-                        + ", " + o.copies() + " cop" + (o.copies() == 1 ? "y" : "ies") + " – " + action;
+                JobLog.driverResult(ok, front, size, o.printerName(), sj.paperName(),
+                        sj.impose() != null ? "IMPOSED" : sj.sizing().name(), 0, false, message, action);
+                boolean done = ok;
+                String details = message + " – " + action;
                 SwingUtilities.invokeLater(() -> {
-                    update(file, out.ok() ? "Printed" : "Failed", "driver", details);
-                    forget(file);
-                    if (!out.ok()) error("Could not print " + file.getFileName(), out.message());
+                    update(front, sj.back(), done ? "Printed" : "Failed", "driver", details);
+                    forget(front);
+                    if (sj.back() != null) forget(sj.back());
+                    if (!done) error("Could not print " + front.getFileName(), details);
                 });
             }
-        }));
+            // plain files, exactly like before
+            if (!plain.isEmpty()) {
+                DriverPrinter.printBatch(job, plain, o, new DriverPrinter.Listener() {
+                    @Override public void started(Path file) {
+                        SwingUtilities.invokeLater(() -> update(file, null, "Printing…", "", "Sending to " + o.printerName()));
+                    }
+                    @Override public void finished(DriverPrinter.Outcome out) {
+                        Path file = out.file();
+                        long size = sizeOf(file);
+                        String action;
+                        if (out.ok()) {
+                            action = p.afterSuccess(file);
+                        } else {
+                            Path moved = p.moveToFailed(file, new Exception(out.message()));
+                            action = moved.equals(file) ? "left in hot folder" : "moved to " + moved;
+                        }
+                        JobLog.driverResult(out.ok(), file, size, o.printerName(), paperLabel, o.sizing().name(),
+                                o.copies(), o.combineIntoOneJob(), out.message(), action);
+                        String details = out.message() + " on " + o.printerName() + ", " + paperLabel
+                                + ", " + o.copies() + " cop" + (o.copies() == 1 ? "y" : "ies") + " – " + action;
+                        SwingUtilities.invokeLater(() -> {
+                            update(file, null, out.ok() ? "Printed" : "Failed", "driver", details);
+                            forget(file);
+                            if (!out.ok()) error("Could not print " + file.getFileName(), out.message());
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    /** Dialog cancelled or printer missing: show the files in the waiting window again. */
+    private void putBack(DriverBatch batch, String why) {
+        for (Path f : batch.files()) {
+            SheetJob sj = batch.sheets().get(f);
+            update(f, sj == null ? null : sj.back(), "Waiting", "", why);
+            pending.addFile(f);
+            if (sj != null && sj.back() != null) pending.addFile(sj.back());
+        }
+        updatePendingButton();
     }
 
     private static long sizeOf(Path f) {
@@ -498,6 +560,12 @@ public final class MainWindow {
     private void updatePendingButton() {
         int n = pending == null ? 0 : pending.pendingCount();
         pendingButton.setText("Waiting files (" + n + ")");
+    }
+
+    /** Updates the log row of a file and, for front/back jobs, of its back too. */
+    private void update(Path file, Path back, String status, String jobId, String details) {
+        update(file, status, jobId, details);
+        if (back != null) update(back, status, jobId, back.equals(file) ? details : "Back of " + file.getFileName());
     }
 
     private void update(Path file, String status, String jobId, String details) {

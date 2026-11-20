@@ -13,6 +13,7 @@ import javax.print.attribute.standard.JobName;
 import javax.print.attribute.standard.Media;
 import javax.print.attribute.standard.MediaSize;
 import javax.print.attribute.standard.MediaSizeName;
+import javax.print.attribute.standard.Sides;
 import java.awt.print.PageFormat;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
@@ -156,6 +157,33 @@ public final class DriverPrinter {
                 listener.finished(new Outcome(f, false, message(e)));
             }
         }
+    }
+
+    /**
+     * Prints a ready-made sheet PDF (imposed and/or front + back) through the driver.
+     * Front/back sheets print two-sided, turning on the long edge.
+     */
+    /** @return a warning for staff, or "" (e.g. when the driver doesn't offer two-sided printing) */
+    public static String printSheetPdf(PrinterJob job, Path pdf, String jobName, DriverPrintOptions o,
+                                       int copies, boolean duplex) throws Exception {
+        String warning = "";
+        if (duplex && !o.showPrintDialog() && job.getPrintService() != null
+                && !job.getPrintService().isAttributeValueSupported(Sides.TWO_SIDED_LONG_EDGE, null, null)) {
+            warning = " – WARNING: printer '" + job.getPrintService().getName() + "' does not offer two-sided printing;"
+                    + " check the job in Command WorkStation or use the Fiery driver";
+        }
+        try (PDDocument doc = Loader.loadPDF(pdf.toFile())) {
+            job.setPageable(new PDFPageable(doc));
+            job.setJobName(jobName);
+            PrintRequestAttributeSet a = new HashPrintRequestAttributeSet();
+            if (!o.showPrintDialog()) {
+                a.add(new JobName(jobName, Locale.getDefault()));
+                a.add(new Copies(Math.max(1, copies)));
+                if (duplex) a.add(Sides.TWO_SIDED_LONG_EDGE);
+            }
+            job.print(a);
+        }
+        return warning;
     }
 
     private static void run(PrinterJob job, ImagePages pages, String jobName, DriverPrintOptions o) throws PrinterException {

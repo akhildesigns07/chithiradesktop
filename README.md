@@ -33,6 +33,92 @@ Response written to the log → file deleted (or moved to Sent/)
 Failure → file moved to Failed/ with an .error.txt, failure logged
 ```
 
+## Imposition and front/back (no Photoshop needed)
+
+A customer sends one JPG or PNG. Staff tick **Impose**, type the **quantity**, and
+click **Impose & Send**. The app fills the sheet, adds crop marks and sends it.
+
+```
+Customer's card.jpg ─▶ app works out the piece size ─▶ fits as many as possible on the paper
+                    ─▶ centred grid, crop marks, info line ─▶ PDF sheet ─▶ Fiery (Hold, copies = sheets)
+```
+
+**What the app decides by itself**
+
+| | How |
+|---|---|
+| Piece size | The DPI stored in the image (150–1200 DPI); otherwise the standard size whose shape matches (visiting card, A6, 4×6 …), choosing the one closest to 300 DPI; otherwise the image at 300 DPI. Staff can pick another size or type a custom one. |
+| Rows × columns | As many as fit, trying pieces upright and turned 90°. Override with Columns / Rows (0 = automatic). |
+| Alignment | Grid centred; margin, gap and bleed adjustable in the window |
+| Crop marks | **Always** on the front sheet, at every cut line; **never** on the back |
+| Sheets | Quantity ÷ pieces per sheet, rounded up, sent as the number of copies |
+| Quality | Shows the DPI at the piece size and blocks blurry jobs (unless "Allow low resolution") |
+
+**Front and back**
+
+* Name the files `card_front.jpg` / `card_back.jpg` (also `_F`/`_B`, `side1`/`side2`) and the app
+  **pairs them automatically**. Or tick two files and click **Pair as Front / Back**.
+  **⇄ Swap** and **Unpair** fix mistakes.
+* A front/back job is **always made into one 2-page PDF**: page 1 = front sheet, page 2 = back sheet,
+  sent two-sided (turning on the long edge).
+* The back is mirrored left↔right so every back lands behind its front. Pieces turned 90° on the
+  front are turned the other way on the back, so both sides read upright.
+* If your press needs it, nudge the back with `impose.back-offset-x-mm` / `-y-mm`.
+* API method: the job gets the attribute `duplex=true`. Check the exact name your Fiery uses
+  (set duplex on a held job in Command WorkStation, then `GET /jobs/{id}`) and set
+  `api.duplex-attribute-name` / `-value`.
+
+**Works with all three send methods.** The **Fiery API** method is the best choice for imposition:
+the image is stored once in a small PDF (e.g. 60 KB for 25 cards). The two driver methods redraw
+the image for every piece, so their files can be 50–200 MB per sheet.
+
+**Settings (all optional, with these defaults):**
+
+```properties
+impose.presets=Visiting card:89x55mm;Visiting card (US):3.5x2in;ID card (CR80):86x54mm;...
+impose.default-paper-id=5598
+impose.margin-mm=5
+impose.gap-mm=2
+impose.bleed-mm=0
+impose.allow-rotation=true
+impose.fill-piece=true
+impose.info-line=true
+impose.back-offset-x-mm=0
+impose.back-offset-y-mm=0
+frontback.auto-pair=true
+api.duplex-attribute-name=duplex
+api.duplex-attribute-value=true
+```
+
+## Mock Fiery Server (test without the real press)
+
+`mock-fiery/` is a small separate program that behaves like your Fiery, so the
+whole app can be tested on a laptop with no risk to real jobs.
+
+* **Fiery API** at `https://localhost:8443/live/api/v5`: login (wrong key → 401), paper catalog,
+  job upload. PNG/JPG are rejected with "unsupported PDL" like the real Fiery; the paper id and
+  attributes are checked. Self-signed HTTPS certificate, sessions that expire.
+* **Raw printing on port 9100.** Add a Windows printer with a PostScript driver on a
+  *Standard TCP/IP port → localhost → RAW 9100*, and the two driver methods can be tested too.
+* **Hold-queue page** at `https://localhost:8443/`: every job with title, paper, copies, two-sided,
+  attributes, **page previews** (check imposition and front/back by eye) and a download link.
+* **Test switches:** go offline, slow responses, reject the next job, server error, expire sessions.
+* Received files are saved in `mock-fiery-data\jobs`; papers are in `mock-fiery-data\papercatalog.json`
+  (edit it to add your real papers).
+
+**Run it:** build with `mock-fiery\build-exe.bat` (or get `MockFiery-windows` from GitHub Actions)
+and double-click **Mock Fiery.exe**. Then point the app at it in `fiery-hotfolder.properties`:
+
+```properties
+fiery.base-url=https://localhost:8443
+fiery.api-key=MOCK-KEY
+fiery.username=test
+fiery.password=test
+fiery.trust-self-signed-certificate=true
+```
+
+Its own settings (port, login, session length) are in `mock-fiery.properties` next to `Mock Fiery.exe`.
+
 ## Windows .exe (recommended)
 
 `build-exe.bat` builds a ready-to-run folder with **Java bundled inside**, so the
@@ -58,7 +144,8 @@ desktop shortcuts. This needs the free WiX Toolset 3 on the build PC.
 **Option B: let GitHub build it (nothing to install)**
 
 Push the project to a GitHub repository, open **Actions → Build Windows EXE → Run
-workflow**, and download the `FieryHotFolder-windows` zip when it finishes.
+workflow**, and download the `FieryHotFolder-windows` zip (and `MockFiery-windows`, the test
+server) when it finishes.
 
 To start the app with Windows, press Win+R, type `shell:startup`, and put a
 shortcut to `Fiery Hot Folder.exe` there.

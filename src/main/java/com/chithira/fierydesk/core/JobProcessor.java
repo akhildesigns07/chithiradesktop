@@ -41,27 +41,48 @@ public final class JobProcessor {
     private final AppConfig.AfterSend afterSend;
     private final boolean useOriginalFileName;
     private final int minDpi;
+    private final int warnDpi;
+    private final String duplexAttributeName;
+    private final String duplexAttributeValue;
 
     public JobProcessor(FieryClient fiery, AppConfig cfg) {
         this.fiery = fiery;
         this.normalizer = new DocumentNormalizer(cfg.minDpi, cfg.warnDpi);
         this.minDpi = cfg.minDpi;
+        this.warnDpi = cfg.warnDpi;
+        this.duplexAttributeName = cfg.duplexAttributeName;
+        this.duplexAttributeValue = cfg.duplexAttributeValue;
         this.imageMode = cfg.imageMode;
         this.afterSend = cfg.afterSend;
         this.useOriginalFileName = cfg.useOriginalFileName;
     }
 
     public Result process(JobRequest r) throws Exception {
-        long size = sizeOf(r.file());
+        long size = sizeOf(r.file()) + (r.back() == null ? 0 : sizeOf(r.back()));
         try {
-            byte[] bytes = Files.readAllBytes(r.file());
-            PreparedDocument doc = prepare(bytes, r);
+            PreparedDocument doc;
+            int copies = r.copies();
+            String sheetInfo = null;
+            if (r.sheet() != null) {
+                // imposition and/or front + back: always made into a PDF first
+                SheetMaker.Sheets sheets = SheetMaker.make(r.sheet(), minDpi, warnDpi);
+                copies = sheets.copies();
+                sheetInfo = sheets.summary();
+                doc = new PreparedDocument(sheets.pdf(), DocumentNormalizer.safeName(r.jobName()) + ".pdf",
+                        "application/pdf", FileKind.PDF, sheets.dpi(), sheets.warnings());
+                if (r.converter() != null) doc = sheetToPostScript(doc, r);
+            } else {
+                doc = prepare(Files.readAllBytes(r.file()), r);
+            }
 
             JobOptions o = new JobOptions()
                     .queue(AppConfig.QUEUE)
                     .pcmid(r.paper() == null ? null : r.paper().id())
-                    .copies(r.copies())
+                    .copies(copies)
                     .instructions(r.instructions());
+            if (r.sheet() != null && r.sheet().duplex() && duplexAttributeName != null && !duplexAttributeName.isBlank()) {
+                o.attribute(duplexAttributeName, duplexAttributeValue);
+            }
 
             // Like Ctrl+P: the Fiery shows the original name (e.g. photo.jpg); the content is PDF/PostScript
             String uploadName = useOriginalFileName ? originalUploadName(r) : doc.filename();
@@ -69,15 +90,17 @@ public final class JobProcessor {
 
             // Only after the Fiery accepted the job: remove the file from the hot folder
             String action = afterSuccess(r.file());
-            String submitted = uploadName + " (" + describe(doc, r) + ")";
+            if (r.back() != null) action += "; back: " + afterSuccess(r.back());
+            String submitted = uploadName + " (" + describe(doc, r) + (sheetInfo == null ? "" : ", " + sheetInfo) + ")";
             JobLog.sent(r, size, submitted, doc.effectiveDpi(), up.jobId(), action, up.rawResponse());
             return new Result(up.jobId(), submitted, doc.effectiveDpi(), doc.warnings(), action, up.rawResponse());
 
         } catch (Exception e) {
             String response = e instanceof FieryException fe ? fe.responseBody() : null;
             Path moved = moveToFailed(r.file(), e);
+            if (r.back() != null) moveToFailed(r.back(), e);
             JobLog.failed(r, size, e.getMessage(), response,
-                    moved.equals(r.file()) ? "left in hot folder" : "moved to " + moved);
+                    moved.equals(r.file()) ? "left in hot folder" : "moved to " + moved + (r.back() == null ? "" : " (with its back)"));
             throw e;
         }
     }
@@ -129,6 +152,21 @@ public final class JobProcessor {
         }
     }
 
+    /** DRIVER_API method for imposed / front-back sheets: the sheet PDF goes through the driver. */
+    private PreparedDocument sheetToPostScript(PreparedDocument pdf, JobRequest r) throws Exception {
+        Path tmp = Files.createTempFile("fiery-sheet-", ".pdf");
+        try {
+            Files.write(tmp, pdf.content());
+            String title = useOriginalFileName ? originalUploadName(r) : DocumentNormalizer.safeName(r.jobName());
+            byte[] ps = PostScriptConverter.convert(tmp, FileKind.PDF, r.converter(), 0, 0, r.sizing(), title,
+                    r.sheet() != null && r.sheet().duplex());
+            return new PreparedDocument(ps, DocumentNormalizer.safeName(r.jobName()) + ".ps", "application/postscript",
+                    FileKind.PDF, pdf.effectiveDpi(), pdf.warnings());
+        } finally {
+            Files.deleteIfExists(tmp);
+        }
+    }
+
     /** DRIVER_API method: convert with the Fiery driver (like Ctrl+P, printed to a file). */
     private PreparedDocument toPostScript(byte[] bytes, FileKind kind, JobRequest r) throws Exception {
         String base = DocumentNormalizer.safeName(r.jobName());
@@ -150,7 +188,7 @@ public final class JobProcessor {
             }
         }
         String title = useOriginalFileName ? originalUploadName(r) : base;
-        byte[] ps = PostScriptConverter.convert(r.file(), kind, r.converter(), w, h, r.sizing(), title);
+        byte[] ps = PostScriptConverter.convert(r.file(), kind, r.converter(), w, h, r.sizing(), title, false);
         if (!PostScriptConverter.looksLikePostScript(ps)) {
             warnings.add("Driver output does not look like PostScript – is '" + r.converter() + "' a PostScript driver?");
         }
