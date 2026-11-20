@@ -1,0 +1,55 @@
+# Builds "Fiery Hot Folder.exe" and the "Mock Fiery.exe" test server on a GitHub Windows
+# machine - nothing to install locally.
+# GitHub → Actions → "Build Windows EXE" → Run workflow → download the
+# "FieryHotFolder-windows" and "MockFiery-windows" artifacts when it finishes.
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build jar and exe
+        shell: cmd
+        run: |
+          call mvn -q -B package || exit /b 1
+          mkdir target\jpackage-input
+          copy /y target\fiery-hotfolder-1.0.0-all.jar target\jpackage-input\
+          jpackage --type app-image --name "Fiery Hot Folder" --app-version 1.0.0 --vendor "Chithira Printers" --icon assets\app.ico --input target\jpackage-input --main-jar fiery-hotfolder-1.0.0-all.jar --main-class com.chithira.fierydesk.App --java-options "-Xmx2g" --dest dist || exit /b 1
+          copy /y fiery-hotfolder.properties "dist\Fiery Hot Folder\"
+
+      - name: Build Mock Fiery exe (test server)
+        shell: cmd
+        run: |
+          call mvn -q -B -f mock-fiery\pom.xml package || exit /b 1
+          mkdir mock-fiery\target\jpackage-input
+          copy /y mock-fiery\target\mock-fiery-1.0.0-all.jar mock-fiery\target\jpackage-input\
+          jpackage --type app-image --name "Mock Fiery" --app-version 1.0.0 --vendor "Chithira Printers" --icon assets\mock.ico --win-console --input mock-fiery\target\jpackage-input --main-jar mock-fiery-1.0.0-all.jar --main-class com.chithira.mockfiery.MockFiery --dest dist || exit /b 1
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist/Fiery Hot Folder" -DestinationPath FieryHotFolder-windows.zip
+          Compress-Archive -Path "dist/Mock Fiery" -DestinationPath MockFiery-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FieryHotFolder-windows
+          path: FieryHotFolder-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MockFiery-windows
+          path: MockFiery-windows.zip
