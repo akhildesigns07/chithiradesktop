@@ -108,6 +108,22 @@ public final class AppConfig {
     public boolean driverCombineIntoOneJob = false;
     public boolean driverShowPrintDialog = false;
 
+    // imposition and front/back
+    public String imposePresets = com.chithira.fierydesk.impose.Preset.DEFAULTS;
+    public String imposeDefaultPaperId = "5598";
+    public double imposeMarginMm = 5;
+    public double imposeGapMm = 2;
+    public double imposeBleedMm = 0;
+    public boolean imposeAllowRotation = true;
+    public boolean imposeFill = true;
+    public boolean imposeInfoLine = true;
+    public double imposeBackOffsetXmm = 0;
+    public double imposeBackOffsetYmm = 0;
+    public boolean autoPairFrontBack = true;
+    public String duplexAttributeName = "duplex";
+    public String duplexAttributeValue = "true";
+    public boolean lastImpose = false;
+
     // UI memory (state.properties)
     public String lastPaperId = "";
     public Sizing lastSizing = Sizing.FIT;
@@ -168,6 +184,19 @@ public final class AppConfig {
         c.driverPaper = get(p, "driver.paper", "", c);
         c.driverCombineIntoOneJob = bool(p, "driver.combine-into-one-job", false, c);
         c.driverShowPrintDialog = bool(p, "driver.show-print-dialog", false, c);
+        c.imposePresets = get(p, "impose.presets", c.imposePresets, c);
+        c.imposeDefaultPaperId = get(p, "impose.default-paper-id", c.imposeDefaultPaperId, c);
+        c.imposeMarginMm = decimal(p, "impose.margin-mm", 5, c);
+        c.imposeGapMm = decimal(p, "impose.gap-mm", 2, c);
+        c.imposeBleedMm = decimal(p, "impose.bleed-mm", 0, c);
+        c.imposeAllowRotation = bool(p, "impose.allow-rotation", true, c);
+        c.imposeFill = bool(p, "impose.fill-piece", true, c);
+        c.imposeInfoLine = bool(p, "impose.info-line", true, c);
+        c.imposeBackOffsetXmm = decimal(p, "impose.back-offset-x-mm", 0, c);
+        c.imposeBackOffsetYmm = decimal(p, "impose.back-offset-y-mm", 0, c);
+        c.autoPairFrontBack = bool(p, "frontback.auto-pair", true, c);
+        c.duplexAttributeName = get(p, "api.duplex-attribute-name", c.duplexAttributeName, c);
+        c.duplexAttributeValue = get(p, "api.duplex-attribute-value", c.duplexAttributeValue, c);
 
         if (!c.fiery.baseUrl().startsWith("https://") && !c.fiery.baseUrl().startsWith("http://")) {
             c.problems.add("fiery.base-url must start with https:// (now: " + c.fiery.baseUrl() + ")");
@@ -225,6 +254,7 @@ public final class AppConfig {
             if (s.containsKey("lastSendMethod")) sendMethod = SendMethod.valueOf(s.getProperty("lastSendMethod"));
             if (!s.getProperty("lastDriverPrinter", "").isBlank()) driverPrinterName = s.getProperty("lastDriverPrinter");
             if (!s.getProperty("lastDriverPaper", "").isBlank()) driverPaper = s.getProperty("lastDriverPaper");
+            lastImpose = Boolean.parseBoolean(s.getProperty("lastImpose", "false"));
         } catch (Exception ignored) {
             // state is only a convenience
         }
@@ -238,6 +268,7 @@ public final class AppConfig {
         s.setProperty("lastSendMethod", sendMethod.name());
         s.setProperty("lastDriverPrinter", driverPrinterName == null ? "" : driverPrinterName);
         s.setProperty("lastDriverPaper", driverPaper == null ? "" : driverPaper);
+        s.setProperty("lastImpose", String.valueOf(lastImpose));
         try (OutputStream out = Files.newOutputStream(STATE_FILE)) {
             s.store(out, "UI memory for Chithira Fiery Hot Folder (safe to delete)");
         }
@@ -306,6 +337,34 @@ public final class AppConfig {
                 # true = show the normal Windows print dialog once per batch (access to the Fiery driver Properties)
                 driver.show-print-dialog=false
 
+                # ---------------------------------------------------------------- Imposition (step and repeat)
+                # Piece sizes offered in the window: Name:WIDTHxHEIGHTmm (or in / cm), separated by ;
+                impose.presets=%s
+                # Paper Catalog id chosen automatically when Impose is ticked (blank = keep current paper)
+                impose.default-paper-id=5598
+                # Defaults in the window (staff can change them per job)
+                impose.margin-mm=5
+                impose.gap-mm=2
+                impose.bleed-mm=0
+                # Turn pieces 90 degrees when more fit that way
+                impose.allow-rotation=true
+                # true = artwork covers each piece (crops if shapes differ); false = fits inside it
+                impose.fill-piece=true
+                # Small line in the margin: file name, N-up, sheets, date
+                impose.info-line=true
+                # Crop marks are always printed on the front sheet and never on the back.
+                # Nudge the back side if the press does not line up front and back exactly (mm)
+                impose.back-offset-x-mm=0
+                impose.back-offset-y-mm=0
+
+                # ---------------------------------------------------------------- Front and back
+                # Pair files automatically when names show it: card_front/card_back, card_F/card_B, side1/side2
+                frontback.auto-pair=true
+                # Job attribute the API sends for two-sided jobs. Find your Fiery's exact name/value by
+                # setting duplex on a held job in Command WorkStation and reading GET /jobs/{id}
+                api.duplex-attribute-name=duplex
+                api.duplex-attribute-value=true
+
                 # ---------------------------------------------------------------- Files
                 # Image files (PNG, JPG...): CONVERT_TO_PDF (recommended) or SEND_ORIGINAL
                 # PDF, PostScript and TIFF are always sent unchanged. Queue is always "hold".
@@ -314,7 +373,7 @@ public final class AppConfig {
                 quality.min-dpi=200
                 # Show a warning below this resolution
                 quality.warn-dpi=300
-                """.formatted(hot);
+                """.formatted(hot, com.chithira.fierydesk.impose.Preset.DEFAULTS);
         Files.writeString(file, t, StandardCharsets.UTF_8);
     }
 
@@ -352,6 +411,16 @@ public final class AppConfig {
         if (v.equals("false") || v.equals("no")) return false;
         c.problems.add(key + " must be true or false (now: " + v + ")");
         return def;
+    }
+
+    private static double decimal(Properties p, String key, double def, AppConfig c) {
+        String v = get(p, key, String.valueOf(def), c);
+        try {
+            return Double.parseDouble(v);
+        } catch (NumberFormatException e) {
+            c.problems.add(key + " must be a number (now: " + v + ")");
+            return def;
+        }
     }
 
     private static int integer(Properties p, String key, int def, AppConfig c) {

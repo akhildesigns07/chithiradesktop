@@ -12,6 +12,7 @@ import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.Copies;
 import javax.print.attribute.standard.Destination;
 import javax.print.attribute.standard.JobName;
+import javax.print.attribute.standard.Sides;
 import java.awt.print.PageFormat;
 import java.awt.print.Paper;
 import java.awt.print.PrinterJob;
@@ -43,9 +44,10 @@ public final class PostScriptConverter {
      * @param converter  Windows printer whose driver does the conversion, or {@link #BUILT_IN}
      * @param pageWidthPt / pageHeightPt  paper size in points (from the Paper Catalog); 0 = default page
      * @param jobName    title written into the PostScript (the original file name)
+     * @param duplex     print two-sided (front/back sheets)
      */
     public static byte[] convert(Path file, FileKind kind, String converter, double pageWidthPt, double pageHeightPt,
-                                 Sizing sizing, String jobName) throws Exception {
+                                 Sizing sizing, String jobName, boolean duplex) throws Exception {
         Path out = Files.createTempFile("fiery-", ".ps");
         OutputStream stream = null;
         try {
@@ -54,6 +56,7 @@ public final class PostScriptConverter {
             PrintRequestAttributeSet attrs = new HashPrintRequestAttributeSet();
             attrs.add(new Copies(1));                         // copies are sent through the API instead
             attrs.add(new JobName(jobName, Locale.getDefault()));
+            if (duplex) attrs.add(Sides.TWO_SIDED_LONG_EDGE);   // front/back: two-sided, turn on the long edge
 
             if (converter == null || BUILT_IN.equals(converter)) {
                 StreamPrintServiceFactory[] f = PrinterJob.lookupStreamPrintServices("application/postscript");

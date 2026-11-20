@@ -59,12 +59,14 @@ public final class JobLog {
 
     private static void write(String status, JobRequest r, long size, String details) {
         String paper = r.paper() == null ? "-" : r.paper().name() + " [" + r.paper().id() + "]";
+        boolean imposed = r.sheet() != null && r.sheet().impose() != null;
         append(LocalDateTime.now().format(TIME) + " | " + status + " | " + r.file().getFileName()
+                + (r.back() == null ? "" : " + back " + r.back().getFileName())
                 + " (" + humanSize(size) + ")"
                 + "\n  job name: " + r.jobName()
                 + " | paper: " + paper
-                + " | sizing: " + r.sizing().name()
-                + " | copies: " + r.copies()
+                + (imposed ? " | imposed, quantity: " + r.sheet().impose().quantity() + " pieces"
+                           : " | sizing: " + r.sizing().name() + " | copies: " + r.copies())
                 + " | queue: " + AppConfig.QUEUE
                 + (r.instructions() == null || r.instructions().isBlank() ? "" : " | instructions: " + oneLine(r.instructions()))
                 + "\n  " + details);

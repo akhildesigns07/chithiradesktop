@@ -1,0 +1,44 @@
+{
+  "time": "2026-11-20T00:00:00Z",
+  "data": {
+    "kind": "papercatalog",
+    "items": [
+      {
+        "id": 5598, "name": "13x19 300 GSM new", "MID": "5598",
+        "Dimension": "936.0 1368.0", "Weight": "300", "MediaType": "Paper", "MediaTypeDetails": "Plain",
+        "FrontCoatings": "Glossy", "BackCoatings": "Glossy", "MediaColorName": "White", "TrayNo": "1",
+        "ppd_settings": { "EFMediaCoatType": "Glossy", "EFMediaColor": "White", "EFMediaType": "Plain", "EFMediaWeight": "257_300", "PageSize": "13x19" }
+      },
+      {
+        "id": 5601, "name": "13x19 170 GSM Matt", "MID": "5601",
+        "Dimension": "936.0 1368.0", "Weight": "170", "MediaType": "Paper", "MediaTypeDetails": "Plain",
+        "FrontCoatings": "Matt", "BackCoatings": "Matt", "MediaColorName": "White", "TrayNo": "2",
+        "ppd_settings": { "EFMediaType": "Plain", "EFMediaWeight": "163_176", "PageSize": "13x19" }
+      },
+      {
+        "id": 5602, "name": "12x18 350 GSM Art Card", "MID": "5602",
+        "Dimension": "864.0 1296.0", "Weight": "350", "MediaType": "Paper", "MediaTypeDetails": "Heavyweight",
+        "FrontCoatings": "Glossy", "BackCoatings": "Glossy", "MediaColorName": "White", "TrayNo": "3",
+        "ppd_settings": { "EFMediaType": "Heavyweight", "EFMediaWeight": "301_350", "PageSize": "12x18" }
+      },
+      {
+        "id": 5610, "name": "SRA3 250 GSM Gloss", "MID": "5610",
+        "Dimension": "907.1 1275.6", "Weight": "250", "MediaType": "Paper", "MediaTypeDetails": "Plain",
+        "FrontCoatings": "Glossy", "BackCoatings": "Glossy", "MediaColorName": "White", "TrayNo": "4",
+        "ppd_settings": { "EFMediaType": "Plain", "EFMediaWeight": "221_256", "PageSize": "SRA3" }
+      },
+      {
+        "id": 5620, "name": "A3 100 GSM Plain", "MID": "5620",
+        "Dimension": "841.9 1190.6", "Weight": "100", "MediaType": "Paper", "MediaTypeDetails": "Plain",
+        "FrontCoatings": "None", "MediaColorName": "White", "TrayNo": "5",
+        "ppd_settings": { "EFMediaType": "Plain", "EFMediaWeight": "91_105", "PageSize": "A3" }
+      },
+      {
+        "id": 5630, "name": "A4 80 GSM Plain", "MID": "5630",
+        "Dimension": "595.3 841.9", "Weight": "80", "MediaType": "Paper", "MediaTypeDetails": "Plain",
+        "FrontCoatings": "None", "MediaColorName": "White", "TrayNo": "1",
+        "ppd_settings": { "EFMediaType": "Plain", "EFMediaWeight": "75_90", "PageSize": "A4" }
+      }
+    ]
+  }
+}

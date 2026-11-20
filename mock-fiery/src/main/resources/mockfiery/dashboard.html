@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mock Fiery – Hold queue</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e1e4e8; --text:#1f2328; --muted:#656d76; --accent:#b81e2d; --ok:#1a7f37; --warn:#9a6700; --bad:#cf222e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--text); }
+  header { background:#24292f; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; font-weight:600; }
+  header .badge { background:var(--accent); border-radius:4px; padding:2px 8px; font-size:12px; font-weight:600; }
+  header .info { color:#c9d1d9; font-size:12.5px; }
+  header code { color:#fff; background:#ffffff1f; padding:1px 5px; border-radius:3px; }
+  main { display:grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap:16px; padding:16px 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .card h2 { font-size:14px; margin:0; padding:10px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { font-size:12px; color:var(--muted); font-weight:600; background:#f6f8fa; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover { background:#f6f8fa; }
+  tbody tr.sel { background:#fff1e5; }
+  td.title { max-width:260px; overflow:hidden; text-overflow:ellipsis; font-weight:500; }
+  .pill { display:inline-block; border-radius:10px; padding:0 8px; font-size:12px; font-weight:600; }
+  .pill.held { background:#fff8c5; color:var(--warn); }
+  .pill.printed { background:#dafbe1; color:var(--ok); }
+  .pill.duplex { background:#ddf4ff; color:#0969da; }
+  .empty { padding:30px; text-align:center; color:var(--muted); }
+  .switches { display:flex; flex-wrap:wrap; gap:8px; padding:12px 14px; }
+  button { font:inherit; border:1px solid var(--line); background:#f6f8fa; border-radius:6px; padding:5px 12px; cursor:pointer; }
+  button:hover { background:#eaeef2; }
+  button.on { background:var(--bad); border-color:var(--bad); color:#fff; }
+  button.danger { color:var(--bad); }
+  #detail .body { padding:12px 14px; }
+  #detail dl { display:grid; grid-template-columns: 130px 1fr; gap:4px 10px; margin:0 0 10px; }
+  #detail dt { color:var(--muted); }
+  #detail dd { margin:0; word-break:break-word; }
+  .pages { display:flex; gap:10px; flex-wrap:wrap; }
+  .pages figure { margin:0; text-align:center; font-size:12px; color:var(--muted); }
+  .pages img { max-width:100%; max-height:420px; border:1px solid var(--line); background:#fff; box-shadow:0 1px 3px #0002; display:block; }
+  .pages.two figure { flex:1 1 45%; }
+  .pages.one figure { flex:1 1 100%; }
+  pre { background:#f6f8fa; border:1px solid var(--line); border-radius:6px; padding:8px; font-size:12px; overflow:auto; max-height:180px; margin:6px 0 0; }
+  #activity td { font-size:12.5px; }
+  .s2 { color:var(--ok); font-weight:600; } .s4 { color:var(--warn); font-weight:600; } .s5 { color:var(--bad); font-weight:600; }
+  .full { grid-column: 1 / -1; }
+  a { color:#0969da; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mock Fiery</h1><span class="badge">TEST SERVER</span>
+  <span class="info" id="info">loading…</span>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Hold queue <span><span id="count" style="color:var(--muted);font-weight:400"></span>
+      <button class="danger" onclick="clearQueue()">Clear queue</button></span></h2>
+    <div style="overflow:auto">
+      <table>
+        <thead><tr><th>ID</th><th>Title</th><th>Received</th><th>From</th><th>Format</th><th>Pages</th><th>Paper</th><th>Copies</th><th></th></tr></thead>
+        <tbody id="jobs"></tbody>
+      </table>
+      <div class="empty" id="empty">No jobs yet. Send a file from the hot folder app.</div>
+    </div>
+  </section>
+
+  <section class="card" id="detail">
+    <h2>Job details <span id="dl"></span></h2>
+    <div class="body" id="detailBody"><div class="empty">Click a job to see its pages.</div></div>
+  </section>
+
+  <section class="card">
+    <h2>Test switches <span style="color:var(--muted);font-weight:400;font-size:12px">check how the app handles problems</span></h2>
+    <div class="switches">
+      <button id="sw-offline" onclick="sw('offline')">Go offline (503)</button>
+      <button id="sw-slow" onclick="sw('slow')">Slow responses (20 s)</button>
+      <button id="sw-rejectNext" onclick="sw('rejectNext')">Reject next job</button>
+      <button id="sw-error500Next" onclick="sw('error500Next')">Server error on next call</button>
+      <button onclick="sw('expireSessions')">Expire sessions now</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Activity</h2>
+    <div style="max-height:260px;overflow:auto">
+      <table id="activity"><thead><tr><th>Time</th><th>Status</th><th>Request</th><th>Note</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</main>
+
+<script>
+let selected = null, lastJobsKey = '', detailKey = '';
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function refresh() {
+  try {
+    const r = await fetch('/mock/api/state', {cache:'no-store'});
+    render(await r.json());
+  } catch (e) { document.getElementById('info').textContent = 'Mock not reachable – is it still running?'; }
+}
+
+function render(st) {
+  const i = st.info;
+  document.getElementById('info').innerHTML =
+    `API <code>${esc(i.apiUrl)}</code> · raw printing <code>localhost:${i.rawPort}</code> · api key <code>${esc(i.apiKey)}</code> · user <code>${esc(i.username)}</code> · ${i.papers} papers · ${i.sessions} session(s)`;
+
+  for (const [k, v] of Object.entries(st.switches)) {
+    const b = document.getElementById('sw-' + (k === 'slowSeconds' ? 'slow' : k));
+    if (b) b.classList.toggle('on', v === true || (typeof v === 'number' && v > 0));
+  }
+
+  const jobs = st.jobs;
+  document.getElementById('count').textContent = jobs.length + ' job(s) ';
+  document.getElementById('empty').style.display = jobs.length ? 'none' : 'block';
+  const key = JSON.stringify(jobs.map(j => [j.id, j.state, j.pages]));
+  if (key !== lastJobsKey) {
+    lastJobsKey = key;
+    document.getElementById('jobs').innerHTML = jobs.map(j => `
+      <tr data-id="${j.id}" class="${j.id === selected ? 'sel' : ''}" onclick="select('${j.id}')">
+        <td>${j.id}</td><td class="title" title="${esc(j.title)}">${esc(j.title)}</td><td>${esc(j.received.slice(11))}</td>
+        <td>${esc(j.source)}</td><td>${esc(j.format)}</td><td>${j.pages}</td>
+        <td>${esc(j.paper || '–')}</td><td>${esc(j.copies)}</td>
+        <td><span class="pill ${j.state.toLowerCase()}">${esc(j.state)}</span> ${j.duplex ? '<span class="pill duplex">Duplex</span>' : ''}</td>
+      </tr>`).join('');
+    if (!selected && jobs.length) select(jobs[0].id, jobs);
+  }
+  window._jobs = jobs;
+  if (selected) showDetail(jobs.find(j => j.id === selected));
+
+  document.querySelector('#activity tbody').innerHTML = st.activity.map(a => `
+    <tr><td>${esc(a.time)}</td><td class="s${String(a.status)[0]}">${a.status}</td><td>${esc(a.request)}</td><td>${esc(a.note)}</td></tr>`).join('');
+}
+
+function select(id, jobs) {
+  selected = id; detailKey = '';
+  document.querySelectorAll('#jobs tr').forEach(tr => tr.classList.toggle('sel', tr.dataset.id === id));
+  showDetail((jobs || window._jobs || []).find(j => j.id === id));
+}
+
+function showDetail(j) {
+  const body = document.getElementById('detailBody');
+  if (!j) { body.innerHTML = '<div class="empty">Click a job to see its pages.</div>'; document.getElementById('dl').innerHTML = ''; return; }
+  const key = j.id + ':' + j.pages;
+  if (key === detailKey) return;
+  detailKey = key;
+  document.getElementById('dl').innerHTML = `<a href="/mock/jobs/${j.id}/file">Download received file</a>`;
+  const shown = Math.min(j.pages || 1, 6);
+  const pages = Array.from({length: shown}, (_, n) => `
+      <figure><img src="/mock/jobs/${j.id}/page/${n + 1}.png" alt="page ${n + 1}"
+        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'No preview for this format (install Ghostscript for PostScript previews)'}))">
+        <figcaption>${j.pages === 2 && j.duplex ? (n === 0 ? 'Page 1 – Front' : 'Page 2 – Back') : 'Page ' + (n + 1)}</figcaption></figure>`).join('');
+  body.innerHTML = `
+    <dl>
+      <dt>Title</dt><dd><b>${esc(j.title)}</b></dd>
+      <dt>Job ID</dt><dd>${j.id} · ${esc(j.state)} · queue ${esc(j.queue)}</dd>
+      <dt>Received</dt><dd>${esc(j.received)} via ${esc(j.source)}</dd>
+      <dt>Format</dt><dd>${esc(j.format)}${j.uploadContentType ? ' (sent as ' + esc(j.uploadContentType) + ')' : ''}, ${j.pages} page(s), ${(j.bytes / 1024).toFixed(0)} KB</dd>
+      <dt>Page size</dt><dd>${esc(j.pageSize || '–')}</dd>
+      <dt>Paper</dt><dd>${j.paper ? esc(j.paper) + ' [' + esc(j.pcmid) + ']' : '–'}</dd>
+      <dt>Copies</dt><dd>${esc(j.copies)}</dd>
+      <dt>Two-sided</dt><dd>${j.duplex ? 'Yes' : 'No'}</dd>
+      ${j.notes.length ? `<dt>Notes</dt><dd>${j.notes.map(esc).join('<br>')}</dd>` : ''}
+    </dl>
+    <div class="pages ${shown === 1 ? 'one' : 'two'}">${pages}</div>
+    ${j.pages > shown ? `<p style="color:var(--muted)">Showing ${shown} of ${j.pages} pages.</p>` : ''}
+    <div style="margin-top:10px;color:var(--muted)">Attributes received</div>
+    <pre>${esc(JSON.stringify(j.attributes, null, 2))}</pre>`;
+}
+
+async function sw(name) { const r = await fetch('/mock/api/switch?name=' + name, {method:'POST'}); render(await r.json()); }
+async function clearQueue() {
+  if (!confirm('Delete all received jobs from the mock?')) return;
+  selected = null; const r = await fetch('/mock/api/clear', {method:'POST'}); render(await r.json());
+}
+
+refresh();
+setInterval(refresh, 1500);
+</script>
+</body>
+</html>
