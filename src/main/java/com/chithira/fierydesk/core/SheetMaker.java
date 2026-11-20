@@ -42,25 +42,25 @@ public final class SheetMaker {
         if (j.impose() != null) {
             ImposeSettings s = j.impose();
             SheetLayout layout = SheetLayout.impose(j.sheetW(), j.sheetH(), s);
-            double longIn = Math.max(s.item().widthMm(), s.item().heightMm()) / 25.4;
+            if (layout.overflow || !layout.fits()) {
+                return new Plan(layout, s.fill(), 0, 0, "Margins too large for this paper", null,
+                        "The margins (" + Preset_fmt(s.marginMm()) + " mm) leave no room on " + j.paperName()
+                                + ". Make the margin smaller or choose a bigger paper.");
+            }
+            // resolution at the size the piece really prints
+            double longIn = Math.max(layout.pieceW, layout.pieceH) / 72;
             int dpi = (int) Math.round(Math.max(px.width, px.height) / longIn);
-            if (!layout.fits()) {
-                return new Plan(layout, s.fill(), dpi, 0, "Piece does not fit on this paper", null,
-                        "A " + s.item().sizeLabel() + " piece does not fit on " + j.paperName() + " with "
-                                + Preset_fmt(s.marginMm()) + " mm margins. Choose a bigger paper or a smaller piece size.");
-            }
-            if (layout.overflow) {
-                return new Plan(layout, s.fill(), dpi, 0, layout.cols + " × " + layout.rows + " does not fit", null,
-                        layout.cols + " × " + layout.rows + " pieces do not fit on " + j.paperName()
-                                + ". Set rows/columns back to Auto or use fewer.");
-            }
             int copies = Math.max(1, layout.sheetsFor(Math.max(1, s.quantity())));
             int made = copies * layout.perSheet();
-            String summary = layout + " · " + copies + " sheet" + (copies == 1 ? "" : "s") + " for " + s.quantity()
+            String resized = layout.resized()
+                    ? " · pieces " + (layout.scale < 1 ? "shrunk" : "enlarged") + " to " + layout.pieceSizeLabel()
+                      + " (" + Math.round(layout.scale * 100) + "%)"
+                    : "";
+            String summary = layout + resized + " · " + copies + " sheet" + (copies == 1 ? "" : "s") + " for " + s.quantity()
                     + (made > s.quantity() ? " (+" + (made - s.quantity()) + " extra)" : "")
                     + (j.duplex() ? " · front + back" : "");
-            String slug = s.slug() ? j.front().getFileName() + " · " + layout + " · " + copies + " sheets · "
-                    + LocalDateTime.now().format(STAMP) : null;
+            String slug = s.slug() ? j.front().getFileName() + " · " + layout + " · " + layout.pieceSizeLabel() + " · "
+                    + copies + " sheets · " + LocalDateTime.now().format(STAMP) : null;
             return new Plan(layout, s.fill(), dpi, copies, summary, slug, null);
         }
         // one image per sheet, placed like a normal job (fit / fill / actual size)

@@ -115,7 +115,7 @@ public final class AppConfig {
     public double imposeGapMm = 2;
     public double imposeBleedMm = 0;
     public boolean imposeAllowRotation = true;
-    public boolean imposeFill = true;
+    public boolean imposeFill = false;      // never crop artwork unless asked
     public boolean imposeInfoLine = true;
     public double imposeBackOffsetXmm = 0;
     public double imposeBackOffsetYmm = 0;
@@ -190,7 +190,8 @@ public final class AppConfig {
         c.imposeGapMm = decimal(p, "impose.gap-mm", 2, c);
         c.imposeBleedMm = decimal(p, "impose.bleed-mm", 0, c);
         c.imposeAllowRotation = bool(p, "impose.allow-rotation", true, c);
-        c.imposeFill = bool(p, "impose.fill-piece", true, c);
+        // new key: artwork is fitted inside each piece (never cropped) unless crop-to-fill is switched on
+        c.imposeFill = bool(p, "impose.crop-to-fill", false, c);
         c.imposeInfoLine = bool(p, "impose.info-line", true, c);
         c.imposeBackOffsetXmm = decimal(p, "impose.back-offset-x-mm", 0, c);
         c.imposeBackOffsetYmm = decimal(p, "impose.back-offset-y-mm", 0, c);
@@ -348,8 +349,9 @@ public final class AppConfig {
                 impose.bleed-mm=0
                 # Turn pieces 90 degrees when more fit that way
                 impose.allow-rotation=true
-                # true = artwork covers each piece (crops if shapes differ); false = fits inside it
-                impose.fill-piece=true
+                # false = artwork fits inside each piece, never cropped (recommended)
+                # true  = artwork covers each piece and the edges are cropped if shapes differ
+                impose.crop-to-fill=false
                 # Small line in the margin: file name, N-up, sheets, date
                 impose.info-line=true
                 # Crop marks are always printed on the front sheet and never on the back.

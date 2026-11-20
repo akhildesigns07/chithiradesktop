@@ -26,11 +26,13 @@ public final class SheetLayout {
     public final boolean cropMarks;
     public final double markOffset, markLength;
     public final double gridX, gridY, gridW, gridH;
-    public final boolean overflow;             // forced rows/cols don't fit
+    public final boolean overflow;             // nothing fits at all (margins bigger than the sheet)
+    public final double scale;                 // 1 = real piece size; < 1 shrunk, > 1 enlarged to fit
     public final List<Cell> front;
 
     private SheetLayout(double sheetW, double sheetH, double pieceW, double pieceH, boolean rotated,
-                        int cols, int rows, double bleed, double gap, boolean cropMarks, boolean overflow) {
+                        int cols, int rows, double bleed, double gap, boolean cropMarks, boolean overflow, double scale) {
+        this.scale = scale;
         this.sheetW = sheetW;
         this.sheetH = sheetH;
         this.pieceW = pieceW;
@@ -112,33 +114,62 @@ public final class SheetLayout {
         double markSpace = Math.max(bleed, 2 * mm) + 4 * mm;     // crop marks are mandatory
         double availW = sheetW - 2 * margin - 2 * markSpace;
         double availH = sheetH - 2 * margin - 2 * markSpace;
+        if (availW <= 0 || availH <= 0 || w <= 0 || h <= 0) {
+            return new SheetLayout(sheetW, sheetH, w, h, false, 0, 0, bleed, gap, true, true, 1);
+        }
 
+        // as many as fit at the real piece size, upright or turned
         int uc = count(availW, w, gap), ur = count(availH, h, gap);
         int rc = s.allowRotate() ? count(availW, h, gap) : 0, rr = s.allowRotate() ? count(availH, w, gap) : 0;
         boolean rotated = rc * rr > uc * ur;
-        double pw = rotated ? h : w, ph = rotated ? w : h;
         int cols = rotated ? rc : uc, rows = rotated ? rr : ur;
 
-        boolean overflow = false;
-        if (s.forceCols() > 0 || s.forceRows() > 0) {
-            int fc = s.forceCols() > 0 ? s.forceCols() : cols;
-            int fr = s.forceRows() > 0 ? s.forceRows() : rows;
-            // if the forced grid only fits the other way round, turn the pieces
-            if ((fc > cols || fr > rows) && s.allowRotate()) {
-                int oc = rotated ? uc : rc, or = rotated ? ur : rr;
-                if (fc <= oc && fr <= or) {
-                    rotated = !rotated;
-                    pw = rotated ? h : w;
-                    ph = rotated ? w : h;
-                    cols = oc;
-                    rows = or;
-                }
-            }
-            overflow = fc > cols || fr > rows;
-            cols = fc;
-            rows = fr;
+        boolean forced = s.forceCols() > 0 || s.forceRows() > 0;
+        int wantC = s.forceCols() > 0 ? s.forceCols() : Math.max(1, cols);
+        int wantR = s.forceRows() > 0 ? s.forceRows() : Math.max(1, rows);
+
+        if (s.mode() == ImposeSettings.Mode.FIT_GRID && forced) {
+            // resize (up or down) so exactly wantC × wantR fills the usable area
+            return scaled(sheetW, sheetH, w, h, wantC, wantR, availW, availH, bleed, gap, s.allowRotate(), Double.MAX_VALUE);
         }
-        return new SheetLayout(sheetW, sheetH, pw, ph, rotated, cols, rows, bleed, gap, true, overflow);
+        if (forced) {
+            // the grid asked for: real size if it fits, otherwise shrunk until it does
+            boolean fitsUpright = wantC <= uc && wantR <= ur;
+            boolean fitsTurned = s.allowRotate() && wantC <= rc && wantR <= rr;
+            if (fitsUpright || fitsTurned) {
+                boolean rot = !fitsUpright;
+                return new SheetLayout(sheetW, sheetH, rot ? h : w, rot ? w : h, rot, wantC, wantR, bleed, gap, true, false, 1);
+            }
+            return scaled(sheetW, sheetH, w, h, wantC, wantR, availW, availH, bleed, gap, s.allowRotate(), 1);
+        }
+        if (cols * rows == 0) {
+            // even one piece is bigger than the paper: shrink it to fit, centred
+            return scaled(sheetW, sheetH, w, h, 1, 1, availW, availH, bleed, gap, s.allowRotate(), 1);
+        }
+        double pw = rotated ? h : w, ph = rotated ? w : h;
+        return new SheetLayout(sheetW, sheetH, pw, ph, rotated, cols, rows, bleed, gap, true, false, 1);
+    }
+
+    /**
+     * cols × rows pieces, resized (keeping proportions) to the largest size that fits;
+     * upright or turned, whichever gives bigger pieces. {@code maxScale} = 1 means shrink only.
+     */
+    private static SheetLayout scaled(double sheetW, double sheetH, double w, double h, int cols, int rows,
+                                      double availW, double availH, double bleed, double gap,
+                                      boolean allowRotate, double maxScale) {
+        double up = fitScale(w, h, cols, rows, availW, availH, gap);
+        double turned = allowRotate ? fitScale(h, w, cols, rows, availW, availH, gap) : 0;
+        boolean rot = turned > up;
+        double s = Math.min(maxScale, rot ? turned : up);
+        if (s <= 0) return new SheetLayout(sheetW, sheetH, w, h, false, 0, 0, bleed, gap, true, true, 1);
+        double pw = (rot ? h : w) * s, ph = (rot ? w : h) * s;
+        return new SheetLayout(sheetW, sheetH, pw, ph, rot, cols, rows, bleed, gap, true, false, s);
+    }
+
+    private static double fitScale(double w, double h, int cols, int rows, double availW, double availH, double gap) {
+        double sw = (availW - (cols - 1) * gap) / (cols * w);
+        double sh = (availH - (rows - 1) * gap) / (rows * h);
+        return Math.max(0, Math.min(sw, sh));
     }
 
     /**
@@ -146,12 +177,22 @@ public final class SheetLayout {
      * normal page placement (fit / fill / actual size).
      */
     public static SheetLayout single(double sheetW, double sheetH, double pieceW, double pieceH, boolean rotated) {
-        return new SheetLayout(sheetW, sheetH, pieceW, pieceH, rotated, 1, 1, 0, 0, false, false);
+        return new SheetLayout(sheetW, sheetH, pieceW, pieceH, rotated, 1, 1, 0, 0, false, false, 1);
     }
 
     private static int count(double avail, double size, double gap) {
         if (size <= 0 || avail < size) return 0;
         return (int) Math.floor((avail + gap + 1e-6) / (size + gap));
+    }
+
+    /** True if the pieces were resized to fit (see {@link #scale}). */
+    public boolean resized() { return Math.abs(scale - 1) > 0.001; }
+
+    /** Piece size on the sheet in mm, e.g. "77 × 48 mm". */
+    public String pieceSizeLabel() {
+        double mm = ImposeSettings.PT_PER_MM;
+        double a = rotated ? pieceH : pieceW, b = rotated ? pieceW : pieceH;
+        return Math.round(a / mm) + " × " + Math.round(b / mm) + " mm";
     }
 
     @Override

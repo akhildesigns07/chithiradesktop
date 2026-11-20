@@ -144,13 +144,21 @@ final class JobStore {
         j.bytes = data.length;
         j.uploadContentType = uploadContentType == null ? "" : uploadContentType;
         if (attributes != null) j.attributes = attributes;
-        String ext = switch (format) { case "PDF" -> ".pdf"; case "TIFF" -> ".tif"; default -> ".ps"; };
-        j.file = j.id + ext;
+        // keep the original name and extension (e.g. 1004_card_front.jpg), like the Fiery shows the job title;
+        // the content itself is the PDF/PostScript that was sent (see the Format column)
+        inspect(j, data);                          // may take the title from the driver's job header
+        j.file = j.id + "_" + safeFileName(j.title);
         Files.write(dir.resolve(j.file), data);
-        inspect(j, data);
         save(j);
         jobs.put(j.id, j);
         return j;
+    }
+
+    /** Windows does not allow \ / : * ? " < > | in file names. */
+    static String safeFileName(String name) {
+        String s = name.replaceAll("[\\\\/:*?\"<>|\\r\\n\\t]", "_").trim();
+        if (s.isEmpty()) s = "job";
+        return s.length() > 150 ? s.substring(0, 150) : s;
     }
 
     void save(Job j) throws IOException {

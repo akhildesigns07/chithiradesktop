@@ -149,7 +149,7 @@ function showDetail(j) {
   const key = j.id + ':' + j.pages;
   if (key === detailKey) return;
   detailKey = key;
-  document.getElementById('dl').innerHTML = `<a href="/mock/jobs/${j.id}/file">Download received file</a>`;
+  document.getElementById('dl').innerHTML = `<a href="/mock/jobs/${j.id}/file" title="Saved under the original name; the content is ${esc(j.format)}">Download received file</a>`;
   const shown = Math.min(j.pages || 1, 6);
   const pages = Array.from({length: shown}, (_, n) => `
       <figure><img src="/mock/jobs/${j.id}/page/${n + 1}.png" alt="page ${n + 1}"

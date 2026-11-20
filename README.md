@@ -49,6 +49,9 @@ Customer's card.jpg ─▶ app works out the piece size ─▶ fits as many as p
 |---|---|
 | Piece size | The DPI stored in the image (150–1200 DPI); otherwise the standard size whose shape matches (visiting card, A6, 4×6 …), choosing the one closest to 300 DPI; otherwise the image at 300 DPI. Staff can pick another size or type a custom one. |
 | Rows × columns | As many as fit, trying pieces upright and turned 90°. Override with Columns / Rows (0 = automatic). |
+| Doesn't fit? | Never an error: a piece bigger than the paper, or more rows × columns than fit, is **shrunk (keeping its proportions) until it fits**, centred. |
+| Layout option | **Piece size** (real size, shrink only if needed) or **Fit rows × columns to the paper** (set Columns and Rows; pieces are resized up or down to fill the paper) |
+| Artwork | Always fitted **inside** each piece: never cropped, stretched or over the edge (`impose.crop-to-fill=true` to crop instead) |
 | Alignment | Grid centred; margin, gap and bleed adjustable in the window |
 | Crop marks | **Always** on the front sheet, at every cut line; **never** on the back |
 | Sheets | Quantity ÷ pieces per sheet, rounded up, sent as the number of copies |
@@ -81,7 +84,7 @@ impose.margin-mm=5
 impose.gap-mm=2
 impose.bleed-mm=0
 impose.allow-rotation=true
-impose.fill-piece=true
+impose.crop-to-fill=false
 impose.info-line=true
 impose.back-offset-x-mm=0
 impose.back-offset-y-mm=0
@@ -103,7 +106,8 @@ whole app can be tested on a laptop with no risk to real jobs.
 * **Hold-queue page** at `https://localhost:8443/`: every job with title, paper, copies, two-sided,
   attributes, **page previews** (check imposition and front/back by eye) and a download link.
 * **Test switches:** go offline, slow responses, reject the next job, server error, expire sessions.
-* Received files are saved in `mock-fiery-data\jobs`; papers are in `mock-fiery-data\papercatalog.json`
+* Received files are saved in `mock-fiery-data\jobs` under their **original name and extension**
+  (e.g. `1004_card_front.jpg`; the content is the PDF/PostScript that was sent). Papers are in `mock-fiery-data\papercatalog.json`
   (edit it to add your real papers).
 
 **Run it:** build with `mock-fiery\build-exe.bat` (or get `MockFiery-windows` from GitHub Actions)

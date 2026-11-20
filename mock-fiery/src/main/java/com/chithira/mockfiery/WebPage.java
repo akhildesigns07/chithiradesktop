@@ -93,7 +93,7 @@ final class WebPage implements HttpHandler {
         if (parts.length >= 2 && parts[1].equals("file")) {
             byte[] data = Files.readAllBytes(s.jobs.fileOf(j));
             ex.getResponseHeaders().set("Content-Disposition",
-                    "attachment; filename*=UTF-8''" + URLEncoder.encode(j.id + "_" + j.title + extension(j), StandardCharsets.UTF_8).replace("+", "%20"));
+                    "attachment; filename*=UTF-8''" + URLEncoder.encode(JobStore.safeFileName(j.title), StandardCharsets.UTF_8).replace("+", "%20"));
             FieryApi.send(ex, 200, data, "application/octet-stream");
             return;
         }
@@ -109,11 +109,6 @@ final class WebPage implements HttpHandler {
             return;
         }
         FieryApi.send(ex, 404, "Not found".getBytes(StandardCharsets.UTF_8), "text/plain");
-    }
-
-    private static String extension(JobStore.Job j) {
-        String actual = switch (j.format) { case "PDF" -> ".pdf"; case "TIFF" -> ".tif"; default -> ".ps"; };
-        return j.title.toLowerCase().endsWith(actual) ? "" : actual;
     }
 
     private static byte[] json(Object o) { return Json.write(o).getBytes(StandardCharsets.UTF_8); }

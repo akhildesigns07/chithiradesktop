@@ -138,6 +138,8 @@ final class PendingJobsWindow extends JFrame {
     private final JSpinner cols = new JSpinner(new SpinnerNumberModel(0, 0, 99, 1));
     private final JSpinner rows = new JSpinner(new SpinnerNumberModel(0, 0, 99, 1));
     private final JSpinner quantity = new JSpinner(new SpinnerNumberModel(100, 1, 1_000_000, 50));
+    private final JComboBox<ImposeSettings.Mode> modeBox = new JComboBox<>(ImposeSettings.Mode.values());
+    private final JLabel gridHint = new JLabel("(0 = automatic)");
     private final JLabel summary = new JLabel(" ");
     private final JPanel imposePanel = new JPanel(new GridBagLayout());
 
@@ -181,7 +183,7 @@ final class PendingJobsWindow extends JFrame {
         imposeBox.setSelected(cfg.lastImpose);
 
         Dimension combo = new Dimension(290, methodBox.getPreferredSize().height);
-        for (JComboBox<?> b : List.of(methodBox, paperBox, printerBox, driverPaperBox, sizingBox, converterBox, sizeBox)) {
+        for (JComboBox<?> b : List.of(methodBox, paperBox, printerBox, driverPaperBox, sizingBox, converterBox, sizeBox, modeBox)) {
             b.setPreferredSize(combo);
         }
 
@@ -196,6 +198,7 @@ final class PendingJobsWindow extends JFrame {
         allowLowRes.addActionListener(e -> updateButtons());
         imposeBox.addActionListener(e -> onImposeToggled());
         sizeBox.addActionListener(e -> { customRow.setVisible(isCustom()); refresh(); });
+        modeBox.addActionListener(e -> { updateGridHint(); refresh(); });
         for (JSpinner s : List.of(customW, customH, marginMm, gapMm, bleedMm, cols, rows, quantity, copies)) {
             s.addChangeListener(e -> refresh());
         }
@@ -392,9 +395,8 @@ final class PendingJobsWindow extends JFrame {
         grid.add(cols);
         grid.add(new JLabel("Rows"));
         grid.add(rows);
-        JLabel auto = new JLabel("(0 = automatic)");
-        auto.setForeground(Color.GRAY);
-        grid.add(auto);
+        gridHint.setForeground(Color.GRAY);
+        grid.add(gridHint);
 
         GridBagConstraints c = gbc();
         int r = 0;
@@ -402,6 +404,7 @@ final class PendingJobsWindow extends JFrame {
         imposePanel.add(imposeBox, c);
         c.gridwidth = 1;
         r = row(imposePanel, c, r, new JLabel("Piece size:"), sizeBox);
+        r = row(imposePanel, c, r, new JLabel("Layout:"), modeBox);
         r = row(imposePanel, c, r, new JLabel(""), customRow);
         r = row(imposePanel, c, r, new JLabel(""), guessLabel);
         r = row(imposePanel, c, r, new JLabel("Spacing:"), spacing);
@@ -647,6 +650,12 @@ final class PendingJobsWindow extends JFrame {
         refresh();
     }
 
+    private void updateGridHint() {
+        boolean fit = modeBox.getSelectedItem() == ImposeSettings.Mode.FIT_GRID;
+        gridHint.setText(fit ? "set both – pieces resize to fill the paper" : "(0 = automatic)");
+        gridHint.setForeground(fit ? new Color(0, 90, 160) : Color.GRAY);
+    }
+
     private boolean isCustom() {
         SizeChoice c = (SizeChoice) sizeBox.getSelectedItem();
         return c != null && c.kind().equals("CUSTOM");
@@ -677,7 +686,8 @@ final class PendingJobsWindow extends JFrame {
         if (piece == null) return null;
         return new ImposeSettings(piece, num(bleedMm), num(gapMm), num(marginMm), cfg.imposeAllowRotation,
                 (Integer) cols.getValue(), (Integer) rows.getValue(), cfg.imposeFill, (Integer) quantity.getValue(),
-                cfg.imposeBackOffsetXmm, cfg.imposeBackOffsetYmm, cfg.imposeInfoLine);
+                cfg.imposeBackOffsetXmm, cfg.imposeBackOffsetYmm, cfg.imposeInfoLine,
+                (ImposeSettings.Mode) modeBox.getSelectedItem());
     }
 
     /** Sheet size in points and its name, from the chosen paper; null if unknown. */
