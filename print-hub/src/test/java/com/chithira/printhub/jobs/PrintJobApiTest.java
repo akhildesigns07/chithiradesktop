@@ -59,6 +59,28 @@ class PrintJobApiTest {
     }
 
     @Test
+    void originalFileSizeIsStoredAndShownOnTheJobPage() throws Exception {
+        String uuid = UUID.randomUUID().toString();
+        String body = report(uuid, "SENT", "API", "\"1009\"", null)
+                .replace("\"error\":null", "\"error\":null,\"fileWidthMm\":90.0,\"fileHeightMm\":50.0,\"fileSizeSource\":\"image at its 600 DPI\"");
+
+        report(body).andExpect(status().isCreated());
+
+        PrintJob job = jobs.findAll().stream().filter(j -> j.getClientJobUuid().equals(uuid)).findFirst().orElseThrow();
+        assertThat(job.getFileSizeLabel()).isEqualTo("90 × 50 mm (3.54 × 1.97 in)");
+        assertThat(job.getFileSizeSource()).isEqualTo("image at its 600 DPI");
+    }
+
+    @Test
+    void reportWithoutFileSizeStillWorks() throws Exception {
+        String uuid = UUID.randomUUID().toString();
+        report(report(uuid, "SENT", "API", "\"1010\"", null)).andExpect(status().isCreated());
+
+        PrintJob job = jobs.findAll().stream().filter(j -> j.getClientJobUuid().equals(uuid)).findFirst().orElseThrow();
+        assertThat(job.getFileSizeLabel()).isNull();
+    }
+
+    @Test
     void driverJobHasNoFieryIdAndWaitsForCounts() throws Exception {
         report(report(UUID.randomUUID().toString(), "SENT", "DRIVER", "null", null))
                 .andExpect(status().isCreated())

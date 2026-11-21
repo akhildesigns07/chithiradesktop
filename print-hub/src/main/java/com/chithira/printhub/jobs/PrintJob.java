@@ -52,6 +52,15 @@ public class PrintJob {
     @Column(name = "paper_name")
     private String paperName;
 
+    @Column(name = "file_width_mm")
+    private Double fileWidthMm;
+
+    @Column(name = "file_height_mm")
+    private Double fileHeightMm;
+
+    @Column(name = "file_size_source")
+    private String fileSizeSource;
+
     private boolean imposed;
 
     @Column(name = "quantity_pieces")
@@ -122,6 +131,7 @@ public class PrintJob {
         snapshot.put("backFileName", backFileName);
         snapshot.put("sendMethod", sendMethod);
         snapshot.put("paper", paperName);
+        snapshot.put("fileSize", getFileSizeLabel());
         snapshot.put("imposed", imposed);
         snapshot.put("quantityPieces", quantityPieces);
         snapshot.put("sheetsRequested", sheetsRequested);
@@ -157,6 +167,29 @@ public class PrintJob {
     void setPaperPcmid(String paperPcmid) { this.paperPcmid = paperPcmid; }
     public String getPaperName() { return paperName; }
     void setPaperName(String paperName) { this.paperName = paperName; }
+    public Double getFileWidthMm() { return fileWidthMm; }
+    public Double getFileHeightMm() { return fileHeightMm; }
+    public String getFileSizeSource() { return fileSizeSource; }
+
+    void setFileSize(Double widthMm, Double heightMm, String source) {
+        this.fileWidthMm = widthMm;
+        this.fileHeightMm = heightMm;
+        this.fileSizeSource = source;
+    }
+
+    /** The original file's size, e.g. "90 × 50 mm (3.54 × 1.97 in)", or null when unknown. */
+    public String getFileSizeLabel() {
+        if (fileWidthMm == null || fileHeightMm == null) return null;
+        return number(fileWidthMm, 1) + " × " + number(fileHeightMm, 1) + " mm ("
+                + number(fileWidthMm / 25.4, 2) + " × " + number(fileHeightMm / 25.4, 2) + " in)";
+    }
+
+    private static String number(double value, int decimals) {
+        double factor = Math.pow(10, decimals);
+        double rounded = Math.round(value * factor) / factor;
+        return rounded == Math.rint(rounded) ? String.valueOf((long) rounded) : String.valueOf(rounded);
+    }
+
     public boolean isImposed() { return imposed; }
     void setImposed(boolean imposed) { this.imposed = imposed; }
     public Integer getQuantityPieces() { return quantityPieces; }

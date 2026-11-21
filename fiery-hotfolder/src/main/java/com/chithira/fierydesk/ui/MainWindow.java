@@ -4,6 +4,7 @@ import com.chithira.fierydesk.core.AppConfig;
 import com.chithira.fierydesk.core.HotFolderWatcher;
 import com.chithira.fierydesk.core.JobLog;
 import com.chithira.fierydesk.core.JobProcessor;
+import com.chithira.fierydesk.document.FilePageSize;
 import com.chithira.fierydesk.hub.HubConnection;
 import com.chithira.fierydesk.hub.JobReport;
 import com.chithira.fierydesk.core.JobRequest;
@@ -285,9 +286,10 @@ public final class MainWindow {
             update(r.file(), r.back(), "Queued", "", r.paper().name() + ", " + what);
             sender.submit(() -> {
                 SwingUtilities.invokeLater(() -> update(r.file(), r.back(), "Sending…", "", r.paper().name()));
+                Optional<FilePageSize> fileSize = FilePageSize.of(r.file());   // before sending: the file is removed after
                 try {
                     JobProcessor.Result res = p.process(r);
-                    hub.report(JobReport.apiSent(r, res));
+                    hub.report(JobReport.apiSent(r, res).withFileSize(fileSize));
                     String details = res.submittedAs()
                             + (res.dpi() != null ? " (" + res.dpi() + " DPI)" : "")
                             + " – " + res.fileAction()
@@ -302,7 +304,7 @@ public final class MainWindow {
                     });
                 } catch (Exception e) {
                     String msg = friendly(e);
-                    hub.report(JobReport.apiFailed(r, msg));
+                    hub.report(JobReport.apiFailed(r, msg).withFileSize(fileSize));
                     SwingUtilities.invokeLater(() -> {
                         update(r.file(), r.back(), "Failed", "", msg + "  (file moved to Failed folder)");
                         forget(r.file());
@@ -347,6 +349,7 @@ public final class MainWindow {
         JobProcessor p = processor;
         AppConfig c = cfg;
         List<Path> plain = batch.files().stream().filter(f -> !batch.sheets().containsKey(f)).toList();
+        Map<Path, Optional<FilePageSize>> plainSizes = new HashMap<>();
         sender.submit(() -> {
             // imposed / front-back sheets
             for (Map.Entry<Path, SheetJob> e : batch.sheets().entrySet()) {
@@ -358,6 +361,7 @@ public final class MainWindow {
                 String message, action;
                 int copiesPrinted = sj.copies();
                 Integer piecesPerSheet = null;
+                Optional<FilePageSize> fileSize = FilePageSize.of(front);
                 Path tmp = null;
                 try {
                     SheetMaker.Sheets sheets = SheetMaker.make(sj, c.minDpi, c.warnDpi);
@@ -380,7 +384,8 @@ public final class MainWindow {
                 }
                 JobLog.driverResult(ok, front, size, o.printerName(), sj.paperName(),
                         sj.impose() != null ? "IMPOSED" : sj.sizing().name(), 0, false, message, action);
-                hub.report(JobReport.driver(front, sj, batch.customer(), sj.paperName(), copiesPrinted, piecesPerSheet, ok, message));
+                hub.report(JobReport.driver(front, sj, batch.customer(), sj.paperName(), copiesPrinted, piecesPerSheet, ok, message)
+                        .withFileSize(fileSize));
                 boolean done = ok;
                 String details = message + " – " + action;
                 SwingUtilities.invokeLater(() -> {
@@ -390,7 +395,8 @@ public final class MainWindow {
                     if (!done) error("Could not print " + front.getFileName(), details);
                 });
             }
-            // plain files, exactly like before
+            // plain files, exactly like before (sizes measured first: printed files are removed)
+            plain.forEach(file -> plainSizes.put(file, FilePageSize.of(file)));
             if (!plain.isEmpty()) {
                 DriverPrinter.printBatch(job, plain, o, new DriverPrinter.Listener() {
                     @Override public void started(Path file) {
@@ -409,7 +415,7 @@ public final class MainWindow {
                         JobLog.driverResult(out.ok(), file, size, o.printerName(), paperLabel, o.sizing().name(),
                                 o.copies(), o.combineIntoOneJob(), out.message(), action);
                         hub.report(JobReport.driver(file, null, batch.customer(), paperLabel, o.copies(), null,
-                                out.ok(), out.message()));
+                                out.ok(), out.message()).withFileSize(plainSizes.getOrDefault(file, Optional.empty())));
                         String details = out.message() + " on " + o.printerName() + ", " + paperLabel
                                 + ", " + o.copies() + " cop" + (o.copies() == 1 ? "y" : "ies") + " – " + action;
                         SwingUtilities.invokeLater(() -> {

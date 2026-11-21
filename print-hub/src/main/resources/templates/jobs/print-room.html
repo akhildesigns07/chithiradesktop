@@ -26,7 +26,9 @@
                     <span th:if="${job.imposed}" th:text="'· ' + ${job.piecesPerSheet} + '-up, ' + ${job.quantityPieces} + ' pcs'"></span></div>
                 <span class="badge text-bg-danger" th:if="${jobs.isCountsOverdue(job)}">overdue</span></td>
             <td th:text="${job.customer} ? ${job.customer.name} : '–'"></td>
-            <td class="small" th:text="${job.paperName} ?: '–'"></td>
+            <td class="small"><span th:text="${job.paperName} ?: '–'"></span>
+                <div class="text-body-secondary" th:if="${job.fileSizeLabel}" th:text="'file ' + ${job.fileSizeLabel}"
+                     th:title="${job.fileSizeSource}"></div></td>
             <td class="text-end" th:text="${job.sheetsRequested}"></td>
             <td><span th:replace="~{fragments/jobs :: status(${job})}"></span></td>
             <td th:if="${@access.canEdit('PRINT_ROOM')}">
@@ -45,7 +47,9 @@
             <td><a th:href="@{/jobs/{id}(id=${job.id})}" th:text="${job.fileName}"></a>
                 <span class="small text-body-secondary" th:text="${@fmt.ago(job.sentAt)}"></span></td>
             <td th:text="${job.customer} ? ${job.customer.name} : '–'"></td>
-            <td class="small" th:text="${job.paperName} ?: '–'"></td>
+            <td class="small"><span th:text="${job.paperName} ?: '–'"></span>
+                <div class="text-body-secondary" th:if="${job.fileSizeLabel}" th:text="'file ' + ${job.fileSizeLabel}"
+                     th:title="${job.fileSizeSource}"></div></td>
             <td class="text-end" th:text="${job.sheetsRequested}"></td>
             <td class="small" th:text="${job.fieryJobId}"></td>
             <td><span th:replace="~{fragments/jobs :: status(${job})}"></span></td>

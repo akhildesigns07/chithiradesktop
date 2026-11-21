@@ -172,6 +172,9 @@ public class PrintJobService {
         job.setJobName(trim(report.jobName()));
         job.setPaperPcmid(trim(report.paperId()));
         job.setPaperName(trim(report.paperName()));
+        if (report.fileWidthMm() != null && report.fileHeightMm() != null) {
+            job.setFileSize(report.fileWidthMm(), report.fileHeightMm(), trim(report.fileSizeSource()));
+        }
         job.setImposed(report.imposed());
         job.setQuantityPieces(report.quantity());
         job.setPiecesPerSheet(report.piecesPerSheet());

@@ -32,6 +32,9 @@
                     <dt class="col-4">Paper</dt>
                     <dd class="col-8"><span th:text="${job.paperName} ?: '–'"></span>
                         <span class="text-body-secondary small" th:if="${job.paperPcmid}" th:text="'[' + ${job.paperPcmid} + ']'"></span></dd>
+                    <dt class="col-4">File size</dt>
+                    <dd class="col-8"><span th:text="${job.fileSizeLabel} ?: '– (not measured)'"></span>
+                        <span class="small text-body-secondary" th:if="${job.fileSizeSource}" th:text="'· ' + ${job.fileSizeSource}"></span></dd>
                     <dt class="col-4">Sent</dt>
                     <dd class="col-8"><span th:text="${job.sheetsRequested}"></span> sheet(s)/copies
                         <span th:if="${job.duplex}">· two-sided</span>

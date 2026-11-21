@@ -32,7 +32,9 @@
                 <span class="badge text-bg-light" th:if="${job.imposed}" th:text="${job.quantityPieces} + ' pcs'"></span></td>
             <td><a th:if="${job.customer}" th:href="@{/customers/{id}(id=${job.customer.id})}" th:text="${job.customer.name}"></a>
                 <span th:unless="${job.customer}" class="text-body-secondary">–</span></td>
-            <td class="small" th:text="${job.paperName} ?: '–'"></td>
+            <td class="small"><span th:text="${job.paperName} ?: '–'"></span>
+                <div class="text-body-secondary" th:if="${job.fileSizeLabel}" th:text="'file ' + ${job.fileSizeLabel}"
+                     th:title="${job.fileSizeSource}"></div></td>
             <td class="text-end" th:text="${job.sheetsRequested}"></td>
             <td class="small" th:text="${job.fieryJobId} ?: 'driver'"></td>
             <td><span th:replace="~{fragments/jobs :: status(${job})}"></span></td>
