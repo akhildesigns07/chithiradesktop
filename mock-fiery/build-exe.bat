@@ -25,7 +25,7 @@ if errorlevel 1 goto :fail
 if exist target\jpackage-input rmdir /s /q target\jpackage-input
 mkdir target\jpackage-input
 copy /y target\mock-fiery-1.0.0-all.jar target\jpackage-input\ >nul
-if exist "..\dist\Mock Fiery" rmdir /s /q "..\dist\Mock Fiery"
+if exist "dist\Mock Fiery" rmdir /s /q "dist\Mock Fiery"
 
 echo [2/2] Creating Mock Fiery.exe...
 jpackage --type app-image ^
@@ -33,12 +33,12 @@ jpackage --type app-image ^
   --app-version 1.0.0 ^
   --vendor "Chithira Printers" ^
   --description "Test server that behaves like a Xerox Fiery" ^
-  --icon ..\assets\mock.ico ^
+  --icon assets\mock.ico ^
   --win-console ^
   --input target\jpackage-input ^
   --main-jar mock-fiery-1.0.0-all.jar ^
   --main-class com.chithira.mockfiery.MockFiery ^
-  --dest ..\dist
+  --dest dist
 if errorlevel 1 goto :fail
 
 echo.

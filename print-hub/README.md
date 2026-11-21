@@ -19,13 +19,14 @@ accounts to manage customers, enter printed and waste counts, and see dashboards
 **Trial or development:** an H2 file database in `./data`, with nothing to install.
 
 ```bash
-mvn -f print-hub/pom.xml package
-java -jar print-hub/target/print-hub.jar --spring.profiles.active=dev
+cd print-hub
+mvn package
+java -jar target/print-hub.jar --spring.profiles.active=dev
 ```
 
 **Shop host (Windows), no code or Java needed:** download the ready-made package.
 
-1. On GitHub: **Actions → Build Windows EXE → Run workflow**, choose your branch, then download the
+1. On GitHub: **Actions → Build Print Hub → Run workflow**, choose your branch, then download the
    **`PrintHub-windows`** artifact. It contains the Print Hub with its own Java, the Windows service wrapper (WinSW)
    and double-click scripts. The package's source files are in `packaging/windows/`.
 2. Install **PostgreSQL 16** (the only other install) and unzip the package to `C:\PrintHub`.
@@ -170,5 +171,5 @@ method that changes data calls `AuditService.record(...)` in the same transactio
 
 ## Tests
 
-`mvn -f print-hub/pom.xml test` runs unit tests and integration tests on an in-memory H2 database in PostgreSQL mode,
+`mvn test` (in the `print-hub` folder) runs unit tests and integration tests on an in-memory H2 database in PostgreSQL mode,
 using the same migrations as production.

@@ -1,0 +1,43 @@
+# Builds "Fiery Hot Folder.exe" (the desktop app, Java included) on a GitHub Windows machine.
+# GitHub → Actions → "Build Fiery Hot Folder" → Run workflow (choose the branch!) →
+# download the "FieryHotFolder-windows" artifact when it finishes.
+name: Build Fiery Hot Folder
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["fiery-hotfolder-v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: fiery-hotfolder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: fiery-hotfolder/pom.xml
+
+      - name: Build jar and exe
+        shell: cmd
+        run: |
+          call mvn -q -B package || exit /b 1
+          mkdir target\jpackage-input
+          copy /y target\fiery-hotfolder-1.0.0-all.jar target\jpackage-input\
+          jpackage --type app-image --name "Fiery Hot Folder" --app-version 1.0.0 --vendor "Chithira Printers" --icon assets\app.ico --input target\jpackage-input --main-jar fiery-hotfolder-1.0.0-all.jar --main-class com.chithira.fierydesk.App --java-options "-Xmx2g" --dest dist || exit /b 1
+          copy /y fiery-hotfolder.properties "dist\Fiery Hot Folder\"
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path "dist/Fiery Hot Folder" -DestinationPath FieryHotFolder-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FieryHotFolder-windows
+          path: fiery-hotfolder/FieryHotFolder-windows.zip
