@@ -50,11 +50,12 @@ Customer's card.jpg ─▶ app works out the piece size ─▶ fits as many as p
 | Piece size | The DPI stored in the image (150–1200 DPI); otherwise the standard size whose shape matches (visiting card, A6, 4×6 …), choosing the one closest to 300 DPI; otherwise the image at 300 DPI. Staff can pick another size or type a custom one. |
 | Rows × columns | As many as fit, trying pieces upright and turned 90°. Override with Columns / Rows (0 = automatic). |
 | Doesn't fit? | Never an error: a piece bigger than the paper, or more rows × columns than fit, is **shrunk (keeping its proportions) until it fits**, centred. |
-| Layout option | **Piece size** (real size, shrink only if needed) or **Fit rows × columns to the paper** (set Columns and Rows; pieces are resized up or down to fill the paper) |
+| Sheet | **Portrait** or **Landscape**: the paper is turned this way whatever the shape of the file (remembered for the next job) |
+| Layout option | **Fit rows × columns to the paper** (default: set Columns, Rows, both or neither; pieces are resized up or down, keeping their proportions, to fill the paper) or **Piece size** (real size, shrink only if needed) |
 | Artwork | Always fitted **inside** each piece: never cropped, stretched or over the edge (`impose.crop-to-fill=true` to crop instead) |
-| Alignment | Grid centred; margin, gap and bleed adjustable in the window |
+| Alignment | Grid centred; margin, gap and bleed adjustable in the window (all start at 0; crop-mark space is always kept) |
 | Crop marks | **Always** on the front sheet, at every cut line; **never** on the back |
-| Sheets | Quantity ÷ pieces per sheet, rounded up, sent as the number of copies |
+| Sheets | Quantity ÷ pieces per sheet, rounded up, sent as the number of copies. Quantity starts at 0 and must be entered before sending |
 | Quality | Shows the DPI at the piece size and blocks blurry jobs (unless "Allow low resolution") |
 
 **Front and back**
@@ -80,9 +81,10 @@ the image for every piece, so their files can be 50–200 MB per sheet.
 ```properties
 impose.presets=Visiting card:89x55mm;Visiting card (US):3.5x2in;ID card (CR80):86x54mm;...
 impose.default-paper-id=5598
-impose.margin-mm=5
-impose.gap-mm=2
+impose.margin-mm=0
+impose.gap-mm=0
 impose.bleed-mm=0
+impose.orientation=PORTRAIT
 impose.allow-rotation=true
 impose.crop-to-fill=false
 impose.info-line=true

@@ -111,8 +111,8 @@ public final class AppConfig {
     // imposition and front/back
     public String imposePresets = com.chithira.fierydesk.impose.Preset.DEFAULTS;
     public String imposeDefaultPaperId = "5598";
-    public double imposeMarginMm = 5;
-    public double imposeGapMm = 2;
+    public double imposeMarginMm = 0;
+    public double imposeGapMm = 0;
     public double imposeBleedMm = 0;
     public boolean imposeAllowRotation = true;
     public boolean imposeFill = false;      // never crop artwork unless asked
@@ -123,6 +123,7 @@ public final class AppConfig {
     public String duplexAttributeName = "duplex";
     public String duplexAttributeValue = "true";
     public boolean lastImpose = false;
+    public com.chithira.fierydesk.impose.Orientation imposeOrientation = com.chithira.fierydesk.impose.Orientation.PORTRAIT;
 
     // UI memory (state.properties)
     public String lastPaperId = "";
@@ -186,10 +187,12 @@ public final class AppConfig {
         c.driverShowPrintDialog = bool(p, "driver.show-print-dialog", false, c);
         c.imposePresets = get(p, "impose.presets", c.imposePresets, c);
         c.imposeDefaultPaperId = get(p, "impose.default-paper-id", c.imposeDefaultPaperId, c);
-        c.imposeMarginMm = decimal(p, "impose.margin-mm", 5, c);
-        c.imposeGapMm = decimal(p, "impose.gap-mm", 2, c);
+        c.imposeMarginMm = decimal(p, "impose.margin-mm", 0, c);
+        c.imposeGapMm = decimal(p, "impose.gap-mm", 0, c);
         c.imposeBleedMm = decimal(p, "impose.bleed-mm", 0, c);
         c.imposeAllowRotation = bool(p, "impose.allow-rotation", true, c);
+        c.imposeOrientation = com.chithira.fierydesk.impose.Orientation.parse(
+                p.getProperty("impose.orientation"), com.chithira.fierydesk.impose.Orientation.PORTRAIT);
         // new key: artwork is fitted inside each piece (never cropped) unless crop-to-fill is switched on
         c.imposeFill = bool(p, "impose.crop-to-fill", false, c);
         c.imposeInfoLine = bool(p, "impose.info-line", true, c);
@@ -256,6 +259,8 @@ public final class AppConfig {
             if (!s.getProperty("lastDriverPrinter", "").isBlank()) driverPrinterName = s.getProperty("lastDriverPrinter");
             if (!s.getProperty("lastDriverPaper", "").isBlank()) driverPaper = s.getProperty("lastDriverPaper");
             lastImpose = Boolean.parseBoolean(s.getProperty("lastImpose", "false"));
+            imposeOrientation = com.chithira.fierydesk.impose.Orientation.parse(
+                    s.getProperty("lastOrientation"), imposeOrientation);
         } catch (Exception ignored) {
             // state is only a convenience
         }
@@ -270,6 +275,7 @@ public final class AppConfig {
         s.setProperty("lastDriverPrinter", driverPrinterName == null ? "" : driverPrinterName);
         s.setProperty("lastDriverPaper", driverPaper == null ? "" : driverPaper);
         s.setProperty("lastImpose", String.valueOf(lastImpose));
+        s.setProperty("lastOrientation", imposeOrientation.name());
         try (OutputStream out = Files.newOutputStream(STATE_FILE)) {
             s.store(out, "UI memory for Chithira Fiery Hot Folder (safe to delete)");
         }
@@ -344,9 +350,11 @@ public final class AppConfig {
                 # Paper Catalog id chosen automatically when Impose is ticked (blank = keep current paper)
                 impose.default-paper-id=5598
                 # Defaults in the window (staff can change them per job)
-                impose.margin-mm=5
-                impose.gap-mm=2
+                impose.margin-mm=0
+                impose.gap-mm=0
                 impose.bleed-mm=0
+                # Paper sheet when imposing: PORTRAIT (tall) or LANDSCAPE (wide), whatever the file's shape
+                impose.orientation=PORTRAIT
                 # Turn pieces 90 degrees when more fit that way
                 impose.allow-rotation=true
                 # false = artwork fits inside each piece, never cropped (recommended)

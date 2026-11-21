@@ -128,9 +128,18 @@ public final class SheetLayout {
         int wantC = s.forceCols() > 0 ? s.forceCols() : Math.max(1, cols);
         int wantR = s.forceRows() > 0 ? s.forceRows() : Math.max(1, rows);
 
-        if (s.mode() == ImposeSettings.Mode.FIT_GRID && forced) {
-            // resize (up or down) so exactly wantC × wantR fills the usable area
-            return scaled(sheetW, sheetH, w, h, wantC, wantR, availW, availH, bleed, gap, s.allowRotate(), Double.MAX_VALUE);
+        if (s.mode() == ImposeSettings.Mode.FIT_GRID) {
+            if (s.forceCols() > 0 && s.forceRows() == 0) {
+                wantR = Math.max(fillCount(availW, availH, w, h, s.forceCols(), gap),
+                        s.allowRotate() ? fillCount(availW, availH, h, w, s.forceCols(), gap) : 0);
+            } else if (s.forceRows() > 0 && s.forceCols() == 0) {
+                wantC = Math.max(fillCount(availH, availW, h, w, s.forceRows(), gap),
+                        s.allowRotate() ? fillCount(availH, availW, w, h, s.forceRows(), gap) : 0);
+            }
+            // resize (up or down, keeping proportions) so wantC × wantR fills the usable area;
+            // nothing given = as many as fit at the real size, then resized to fill
+            return scaled(sheetW, sheetH, w, h, Math.max(1, wantC), Math.max(1, wantR),
+                    availW, availH, bleed, gap, s.allowRotate(), Double.MAX_VALUE);
         }
         if (forced) {
             // the grid asked for: real size if it fits, otherwise shrunk until it does
@@ -164,6 +173,16 @@ public final class SheetLayout {
         if (s <= 0) return new SheetLayout(sheetW, sheetH, w, h, false, 0, 0, bleed, gap, true, true, 1);
         double pw = (rot ? h : w) * s, ph = (rot ? w : h) * s;
         return new SheetLayout(sheetW, sheetH, pw, ph, rot, cols, rows, bleed, gap, true, false, s);
+    }
+
+    /**
+     * With {@code fixed} pieces across {@code availA} sized to fill it, how many pieces fit
+     * along {@code availB} (at least 1). {@code a} is the piece side along A, {@code b} along B.
+     */
+    private static int fillCount(double availA, double availB, double a, double b, int fixed, double gap) {
+        double s = (availA - (fixed - 1) * gap) / (fixed * a);
+        if (s <= 0) return 1;
+        return Math.max(1, count(availB, b * s, gap));
     }
 
     private static double fitScale(double w, double h, int cols, int rows, double availW, double availH, double gap) {

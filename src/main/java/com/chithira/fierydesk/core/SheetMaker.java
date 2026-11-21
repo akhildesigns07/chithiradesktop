@@ -56,9 +56,11 @@ public final class SheetMaker {
                     ? " · pieces " + (layout.scale < 1 ? "shrunk" : "enlarged") + " to " + layout.pieceSizeLabel()
                       + " (" + Math.round(layout.scale * 100) + "%)"
                     : "";
-            String summary = layout + resized + " · " + copies + " sheet" + (copies == 1 ? "" : "s") + " for " + s.quantity()
-                    + (made > s.quantity() ? " (+" + (made - s.quantity()) + " extra)" : "")
-                    + (j.duplex() ? " · front + back" : "");
+            String summary = s.quantity() <= 0
+                    ? layout + resized + " · enter the quantity" + (j.duplex() ? " · front + back" : "")
+                    : layout + resized + " · " + copies + " sheet" + (copies == 1 ? "" : "s") + " for " + s.quantity()
+                      + (made > s.quantity() ? " (+" + (made - s.quantity()) + " extra)" : "")
+                      + (j.duplex() ? " · front + back" : "");
             String slug = s.slug() ? j.front().getFileName() + " · " + layout + " · " + layout.pieceSizeLabel() + " · "
                     + copies + " sheets · " + LocalDateTime.now().format(STAMP) : null;
             return new Plan(layout, s.fill(), dpi, copies, summary, slug, null);

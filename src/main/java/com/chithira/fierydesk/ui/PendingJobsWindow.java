@@ -16,6 +16,7 @@ import com.chithira.fierydesk.driver.PostScriptConverter;
 import com.chithira.fierydesk.fiery.Paper;
 import com.chithira.fierydesk.impose.AutoSize;
 import com.chithira.fierydesk.impose.ImposeSettings;
+import com.chithira.fierydesk.impose.Orientation;
 import com.chithira.fierydesk.impose.Preset;
 import com.chithira.fierydesk.impose.SheetLayout;
 import com.chithira.fierydesk.impose.SheetPreview;
@@ -128,17 +129,18 @@ final class PendingJobsWindow extends JFrame {
     // imposition
     private final JCheckBox imposeBox = new JCheckBox("Impose – fill the sheet with copies (crop marks on)");
     private final JComboBox<SizeChoice> sizeBox = new JComboBox<>();
-    private final JSpinner customW = mmSpinner(89, 5, 2000);
-    private final JSpinner customH = mmSpinner(55, 5, 2000);
+    private final JSpinner customW = mmSpinner(0, 0, 2000);
+    private final JSpinner customH = mmSpinner(0, 0, 2000);
     private final JPanel customRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
     private final JLabel guessLabel = new JLabel(" ");
-    private final JSpinner marginMm = mmSpinner(5, 0, 50);
-    private final JSpinner gapMm = mmSpinner(2, 0, 50);
+    private final JSpinner marginMm = mmSpinner(0, 0, 50);
+    private final JSpinner gapMm = mmSpinner(0, 0, 50);
     private final JSpinner bleedMm = mmSpinner(0, 0, 10);
     private final JSpinner cols = new JSpinner(new SpinnerNumberModel(0, 0, 99, 1));
     private final JSpinner rows = new JSpinner(new SpinnerNumberModel(0, 0, 99, 1));
-    private final JSpinner quantity = new JSpinner(new SpinnerNumberModel(100, 1, 1_000_000, 50));
+    private final JSpinner quantity = new JSpinner(new SpinnerNumberModel(0, 0, 1_000_000, 1));
     private final JComboBox<ImposeSettings.Mode> modeBox = new JComboBox<>(ImposeSettings.Mode.values());
+    private final JComboBox<Orientation> orientationBox = new JComboBox<>(Orientation.values());
     private final JLabel gridHint = new JLabel("(0 = automatic)");
     private final JLabel summary = new JLabel(" ");
     private final JPanel imposePanel = new JPanel(new GridBagLayout());
@@ -181,9 +183,11 @@ final class PendingJobsWindow extends JFrame {
         instructions.setWrapStyleWord(true);
         applyImposeDefaults();
         imposeBox.setSelected(cfg.lastImpose);
+        modeBox.setSelectedItem(ImposeSettings.Mode.FIT_GRID);
+        orientationBox.setSelectedItem(cfg.imposeOrientation);
 
         Dimension combo = new Dimension(290, methodBox.getPreferredSize().height);
-        for (JComboBox<?> b : List.of(methodBox, paperBox, printerBox, driverPaperBox, sizingBox, converterBox, sizeBox, modeBox)) {
+        for (JComboBox<?> b : List.of(methodBox, paperBox, printerBox, driverPaperBox, sizingBox, converterBox, sizeBox, modeBox, orientationBox)) {
             b.setPreferredSize(combo);
         }
 
@@ -199,6 +203,10 @@ final class PendingJobsWindow extends JFrame {
         imposeBox.addActionListener(e -> onImposeToggled());
         sizeBox.addActionListener(e -> { customRow.setVisible(isCustom()); refresh(); });
         modeBox.addActionListener(e -> { updateGridHint(); refresh(); });
+        orientationBox.addActionListener(e -> {
+            cfg.imposeOrientation = (Orientation) orientationBox.getSelectedItem();
+            refresh();
+        });
         for (JSpinner s : List.of(customW, customH, marginMm, gapMm, bleedMm, cols, rows, quantity, copies)) {
             s.addChangeListener(e -> refresh());
         }
@@ -403,6 +411,7 @@ final class PendingJobsWindow extends JFrame {
         c.gridx = 0; c.gridy = r++; c.gridwidth = 2;
         imposePanel.add(imposeBox, c);
         c.gridwidth = 1;
+        r = row(imposePanel, c, r, new JLabel("Sheet:"), orientationBox);
         r = row(imposePanel, c, r, new JLabel("Piece size:"), sizeBox);
         r = row(imposePanel, c, r, new JLabel("Layout:"), modeBox);
         r = row(imposePanel, c, r, new JLabel(""), customRow);
@@ -652,7 +661,7 @@ final class PendingJobsWindow extends JFrame {
 
     private void updateGridHint() {
         boolean fit = modeBox.getSelectedItem() == ImposeSettings.Mode.FIT_GRID;
-        gridHint.setText(fit ? "set both – pieces resize to fill the paper" : "(0 = automatic)");
+        gridHint.setText(fit ? "0 = as many as fit · pieces resize to fill the paper" : "(0 = automatic)");
         gridHint.setForeground(fit ? new Color(0, 90, 160) : Color.GRAY);
     }
 
@@ -696,11 +705,20 @@ final class PendingJobsWindow extends JFrame {
             DriverPaper dp = (DriverPaper) driverPaperBox.getSelectedItem();
             if (dp == null || dp.media() == null) return null;
             double[] in = DriverPrinter.inches(dp.media()).orElse(null);
-            return in == null ? null : new Object[]{in[0] * 72, in[1] * 72, dp.media().toString()};
+            return in == null ? null : turned(new Object[]{in[0] * 72, in[1] * 72, dp.media().toString()});
         }
         Paper p = (Paper) paperBox.getSelectedItem();
         if (p == null || !p.hasSize()) return null;
-        return new Object[]{p.widthPt(), p.heightPt(), p.name()};
+        return turned(new Object[]{p.widthPt(), p.heightPt(), p.name()});
+    }
+
+    /** When imposing, the sheet is turned to the chosen Portrait / Landscape, whatever the file's shape. */
+    private Object[] turned(Object[] sh) {
+        if (!imposeBox.isSelected()) return sh;
+        Orientation o = (Orientation) orientationBox.getSelectedItem();
+        double[] wh = (o == null ? Orientation.PORTRAIT : o).apply((double) sh[0], (double) sh[1]);
+        String name = sh[2] + (o == Orientation.LANDSCAPE ? " (landscape)" : " (portrait)");
+        return new Object[]{wh[0], wh[1], name};
     }
 
     /** True if this entry becomes a sheet PDF (imposed and/or front + back). */
@@ -762,6 +780,14 @@ final class PendingJobsWindow extends JFrame {
 
         List<String> problems = new ArrayList<>();
         List<String> tooLow = new ArrayList<>();
+        if (imposeBox.isSelected()) {
+            if ((Integer) quantity.getValue() <= 0) problems.add("Enter the quantity (pieces) to impose.");
+            if (isCustom() && (num(customW) <= 0 || num(customH) <= 0)) problems.add("Enter the piece width and height (mm).");
+            if (!problems.isEmpty()) {
+                JOptionPane.showMessageDialog(this, String.join("\n", problems), "Can't send yet", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        }
         for (Entry e : ticked) {
             if (imposeBox.isSelected() && !e.isImage()) {
                 problems.add(e.file.getFileName() + ": imposition works with image files (JPG, PNG, TIFF…)");
@@ -841,6 +867,12 @@ final class PendingJobsWindow extends JFrame {
         copies.setValue(1);
         cols.setValue(0);
         rows.setValue(0);
+        quantity.setValue(0);
+        customW.setValue(0.0);
+        customH.setValue(0.0);
+        marginMm.setValue(cfg.imposeMarginMm);
+        gapMm.setValue(cfg.imposeGapMm);
+        bleedMm.setValue(cfg.imposeBleedMm);
     }
 
     private void skipTicked() {
@@ -928,6 +960,11 @@ final class PendingJobsWindow extends JFrame {
         } else {
             Preset p = pieceFor(e);
             guessLabel.setText(p == null ? " " : "Piece: " + p.sizeLabel());
+        }
+        if (isCustom() && (num(customW) <= 0 || num(customH) <= 0)) {
+            summary.setForeground(Color.RED);
+            summary.setText("Enter the piece width and height");
+            return;
         }
         SheetMaker.Plan plan = planFor(e);
         summary.setForeground(plan.ok() ? (plan.dpi() < cfg.minDpi ? Color.RED : GREEN) : Color.RED);
