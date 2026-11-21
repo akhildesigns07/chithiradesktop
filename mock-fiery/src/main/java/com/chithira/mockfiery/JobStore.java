@@ -173,6 +173,22 @@ final class JobStore {
 
     Path fileOf(Job j) { return dir.resolve(j.file); }
 
+    /** Changes a job's state (Held, Printing, Printed), like an operator in Command WorkStation. */
+    synchronized void setState(Job j, String state) throws IOException {
+        j.state = state;
+        j.notes.add(LocalDateTime.now().format(TIME) + " " + state.toLowerCase());
+        save(j);
+    }
+
+    /** Deletes a job and its file; GET /jobs/{id} then answers 404, like a real Fiery. */
+    synchronized boolean delete(String id) throws IOException {
+        Job j = jobs.remove(id);
+        if (j == null) return false;
+        Files.deleteIfExists(dir.resolve(j.id + ".job.json"));
+        if (j.file != null && !j.file.isBlank()) Files.deleteIfExists(dir.resolve(j.file));
+        return true;
+    }
+
     synchronized void clear() throws IOException {
         try (Stream<Path> files = Files.list(dir)) {
             for (Path p : files.toList()) Files.deleteIfExists(p);

@@ -10,6 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The mock's own web page (like the Hold queue in Command WorkStation) and its small
@@ -17,7 +20,15 @@ import java.util.Map;
  */
 final class WebPage implements HttpHandler {
 
+    /** Seconds a job stays "Printing" after the Print button before it becomes "Printed". */
+    static final int PRINT_SECONDS = 5;
+
     private final MockState s;
+    private final ScheduledExecutorService printer = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "mock-printer");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     WebPage(MockState s) { this.s = s; }
 
@@ -40,6 +51,7 @@ final class WebPage implements HttpHandler {
                 FieryApi.send(ex, 200, json(state()), "application/json");
                 return;
             }
+            if (path.startsWith("/mock/jobs/") && method.equals("POST")) { jobAction(ex, path.substring("/mock/jobs/".length())); return; }
             if (path.startsWith("/mock/jobs/")) { job(ex, path.substring("/mock/jobs/".length())); return; }
             FieryApi.send(ex, 404, "Not found".getBytes(StandardCharsets.UTF_8), "text/plain");
         } catch (Exception e) {
@@ -109,6 +121,38 @@ final class WebPage implements HttpHandler {
             return;
         }
         FieryApi.send(ex, 404, "Not found".getBytes(StandardCharsets.UTF_8), "text/plain");
+    }
+
+    /**
+     * POST /mock/jobs/{id}/print: Printing now, Printed after {@link #PRINT_SECONDS}.
+     * POST /mock/jobs/{id}/delete: removed from the queue (the API then answers 404 for it).
+     */
+    private void jobAction(HttpExchange ex, String rest) throws IOException {
+        String[] parts = rest.split("/");
+        String id = parts[0];
+        String action = parts.length > 1 ? parts[1] : "";
+        JobStore.Job j = s.jobs.get(id);
+        if (j == null) { FieryApi.send(ex, 404, "No such job".getBytes(StandardCharsets.UTF_8), "text/plain"); return; }
+        switch (action) {
+            case "print" -> {
+                s.jobs.setState(j, "Printing");
+                printer.schedule(() -> {
+                    try {
+                        if (s.jobs.get(id) != null) s.jobs.setState(j, "Printed");
+                        s.log("MOCK", "/mock/jobs/" + id, 200, "job " + id + " printed");
+                    } catch (IOException e) {
+                        s.log("MOCK", "/mock/jobs/" + id, 500, "could not save state: " + e.getMessage());
+                    }
+                }, PRINT_SECONDS, TimeUnit.SECONDS);
+                s.log("POST", "/mock/jobs/" + id + "/print", 200, "job " + id + " printing");
+            }
+            case "delete" -> {
+                s.jobs.delete(id);
+                s.log("POST", "/mock/jobs/" + id + "/delete", 200, "job " + id + " deleted from the queue");
+            }
+            default -> { FieryApi.send(ex, 400, "Unknown action".getBytes(StandardCharsets.UTF_8), "text/plain"); return; }
+        }
+        FieryApi.send(ex, 200, json(state()), "application/json");
     }
 
     private static byte[] json(Object o) { return Json.write(o).getBytes(StandardCharsets.UTF_8); }

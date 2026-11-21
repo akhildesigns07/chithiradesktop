@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Print dashboard')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4 pb-4" th:with="t=${data.totals}">
+    <h1 class="h3 mb-2">Print dashboard</h1>
+    <div th:replace="~{fragments/dashboard :: filters}"></div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Jobs sent', ${#numbers.formatInteger(t.jobsSent, 1, 'COMMA')}, ${t.jobs} + ' reported in total')}"></div></div>
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Sheets sent', ${#numbers.formatInteger(t.sheetsSent, 1, 'COMMA')}, 'copies asked of the Fiery or printer')}"></div></div>
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Counted jobs', ${t.countedJobs}, ${#numbers.formatDecimal(t.countedPercent(), 1, 0)} + ' % of jobs sent')}"></div></div>
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Printed sheets', ${#numbers.formatInteger(t.printed, 1, 'COMMA')}, ${#numbers.formatInteger(t.waste, 1, 'COMMA')} + ' waste')}"></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Sheets sent per day</h2>
+            <div class="chart-note mb-2">Copies sent to the Fiery or printer, whether counted yet or not</div>
+            <div th:replace="~{fragments/dashboard :: canvas('sheetsSent', 'Sheets sent per day', false)}"></div>
+            <div th:replace="~{fragments/dashboard :: dailyTable(${data.days})}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Printed and waste sheets per day</h2>
+            <div class="chart-note mb-2">Counted jobs only</div>
+            <div th:replace="~{fragments/dashboard :: canvas('daily', 'Printed and waste sheets per day', false)}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <div class="d-flex justify-content-between"><h2>Jobs by status</h2>
+                <a class="small" th:if="${@access.canView('PRINT_JOBS')}" th:href="@{/jobs}">Job list →</a></div>
+            <div class="chart-note mb-2">Where the jobs of this range are now</div>
+            <div th:replace="~{fragments/dashboard :: canvas('status', 'Jobs by status', false)}"></div>
+            <details class="table-view"><summary>Show as table</summary>
+                <table class="table table-sm mt-2 mb-0"><tr th:each="s : ${data.byStatus}">
+                    <td th:text="${s.key}"></td><td class="num" th:text="${s.value}"></td></tr></table></details>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Desktops</h2>
+            <div class="chart-note mb-2">Printed and waste sheets per desktop</div>
+            <div th:replace="~{fragments/dashboard :: canvas('devices', 'Printed and waste sheets per desktop', false)}"></div>
+            <div th:replace="~{fragments/dashboard :: groupTable(${data.byDevice}, null, null)}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card h-100"><div class="card-body">
+            <h2 class="h6">Send method</h2>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Method</th><th class="num">Jobs</th><th class="num">Sheets sent</th><th class="num">Printed</th><th class="num">Waste</th></tr></thead>
+                <tr th:each="g : ${data.bySendMethod}"><td th:text="${g.label}"></td><td class="num" th:text="${#numbers.formatInteger(g.jobs, 1, 'COMMA')}"></td>
+                    <td class="num" th:text="${#numbers.formatInteger(g.sheetsSent, 1, 'COMMA')}"></td><td class="num" th:text="${#numbers.formatInteger(g.printed, 1, 'COMMA')}"></td><td class="num" th:text="${#numbers.formatInteger(g.waste, 1, 'COMMA')}"></td></tr>
+            </table>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card h-100"><div class="card-body">
+            <h2 class="h6">Front staff (Windows user at the desktop)</h2>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Operator</th><th class="num">Jobs</th><th class="num">Sheets sent</th><th class="num">Printed</th><th class="num">Waste</th></tr></thead>
+                <tr th:each="g : ${data.byOperator}"><td th:text="${g.label}"></td><td class="num" th:text="${#numbers.formatInteger(g.jobs, 1, 'COMMA')}"></td>
+                    <td class="num" th:text="${#numbers.formatInteger(g.sheetsSent, 1, 'COMMA')}"></td><td class="num" th:text="${#numbers.formatInteger(g.printed, 1, 'COMMA')}"></td><td class="num" th:text="${#numbers.formatInteger(g.waste, 1, 'COMMA')}"></td></tr>
+            </table>
+        </div></div></div>
+    </div>
+    <p th:replace="~{fragments/dashboard :: countingNote}"></p>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<th:block th:replace="~{fragments/layout :: chartScripts}"></th:block>
+</body>
+</html>

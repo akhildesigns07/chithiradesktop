@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Error')}"></head>
+<body>
+<main class="container py-5">
+    <h1 class="h4">Something went wrong</h1>
+    <p class="text-body-secondary" th:text="${status} + ' ' + ${error}"></p>
+    <a class="btn btn-primary" th:href="@{/}">Go to start page</a>
+</main>
+</body>
+</html>

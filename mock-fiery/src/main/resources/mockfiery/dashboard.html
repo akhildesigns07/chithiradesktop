@@ -26,6 +26,8 @@
   .pill { display:inline-block; border-radius:10px; padding:0 8px; font-size:12px; font-weight:600; }
   .pill.held { background:#fff8c5; color:var(--warn); }
   .pill.printed { background:#dafbe1; color:var(--ok); }
+  .pill.printing { background:#ddf4ff; color:#0969da; }
+  .job-actions { display:flex; gap:8px; margin:8px 0 12px; }
   .pill.duplex { background:#ddf4ff; color:#0969da; }
   .empty { padding:30px; text-align:center; color:var(--muted); }
   .switches { display:flex; flex-wrap:wrap; gap:8px; padding:12px 14px; }
@@ -146,7 +148,7 @@ function select(id, jobs) {
 function showDetail(j) {
   const body = document.getElementById('detailBody');
   if (!j) { body.innerHTML = '<div class="empty">Click a job to see its pages.</div>'; document.getElementById('dl').innerHTML = ''; return; }
-  const key = j.id + ':' + j.pages;
+  const key = j.id + ':' + j.pages + ':' + j.state;
   if (key === detailKey) return;
   detailKey = key;
   document.getElementById('dl').innerHTML = `<a href="/mock/jobs/${j.id}/file" title="Saved under the original name; the content is ${esc(j.format)}">Download received file</a>`;
@@ -155,7 +157,11 @@ function showDetail(j) {
       <figure><img src="/mock/jobs/${j.id}/page/${n + 1}.png" alt="page ${n + 1}"
         onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'empty',textContent:'No preview for this format (install Ghostscript for PostScript previews)'}))">
         <figcaption>${j.pages === 2 && j.duplex ? (n === 0 ? 'Page 1 – Front' : 'Page 2 – Back') : 'Page ' + (n + 1)}</figcaption></figure>`).join('');
-  body.innerHTML = `
+  const actions = `<div class="job-actions">
+      ${j.state === 'Held' ? `<button onclick="jobAction('${j.id}','print')" title="Printing now, Printed after a few seconds">Print</button>` : ''}
+      <button class="danger" onclick="jobAction('${j.id}','delete')" title="Remove from the queue, like Delete in Command WorkStation">Delete</button>
+    </div>`;
+  body.innerHTML = actions + `
     <dl>
       <dt>Title</dt><dd><b>${esc(j.title)}</b></dd>
       <dt>Job ID</dt><dd>${j.id} · ${esc(j.state)} · queue ${esc(j.queue)}</dd>
@@ -173,6 +179,13 @@ function showDetail(j) {
     <pre>${esc(JSON.stringify(j.attributes, null, 2))}</pre>`;
 }
 
+async function jobAction(id, action) {
+  if (action === 'delete' && !confirm('Delete job ' + id + ' from the queue?')) return;
+  const r = await fetch('/mock/jobs/' + id + '/' + action, {method:'POST'});
+  if (action === 'delete') selected = null;
+  detailKey = '';
+  render(await r.json());
+}
 async function sw(name) { const r = await fetch('/mock/api/switch?name=' + name, {method:'POST'}); render(await r.json()); }
 async function clearQueue() {
   if (!confirm('Delete all received jobs from the mock?')) return;

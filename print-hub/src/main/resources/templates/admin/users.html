@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Users')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <h1 class="h3 mb-3">Users</h1>
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <table class="table align-middle">
+                <thead><tr><th>Username</th><th>Name</th><th>Roles</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="u : ${users}" th:classappend="${u.active} ? '' : 'text-body-secondary'">
+                    <td th:text="${u.username}"></td>
+                    <td th:text="${u.displayName}"></td>
+                    <td><span class="badge text-bg-light me-1" th:each="r : ${u.roles}" th:text="${r.label()}"></span></td>
+                    <td><span th:text="${u.active} ? 'Active' : 'Inactive'"></span>
+                        <span class="badge text-bg-warning" th:if="${u.mustChangePassword}">temp password</span></td>
+                    <td class="small" th:text="${@fmt.ago(u.lastLoginAt)}"></td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" th:href="@{/admin/users/{id}(id=${u.id})}">Edit</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-4">
+            <div class="card"><div class="card-body">
+                <h2 class="h6">Add a user</h2>
+                <form method="post" th:action="@{/admin/users}">
+                    <div class="mb-2"><label class="form-label">Username</label>
+                        <input class="form-control" name="username" required pattern="[A-Za-z0-9._-]{3,60}"></div>
+                    <div class="mb-2"><label class="form-label">Full name</label>
+                        <input class="form-control" name="displayName"></div>
+                    <div class="mb-3"><label class="form-label d-block">Roles</label>
+                        <div class="form-check" th:each="r : ${roles}">
+                            <input class="form-check-input" type="checkbox" name="roles" th:value="${r}" th:id="'nr-' + ${r}">
+                            <label class="form-check-label" th:for="'nr-' + ${r}" th:text="${r.label()}"></label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary">Create with temporary password</button>
+                </form>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# build output and local run data of each project (fiery-hotfolder, print-hub, mock-fiery)
+*/target/
+*/dist/
+*/dependency-reduced-pom.xml
+*/data/
+*/logs/
+*/mock-fiery-data/
+*/mock-fiery.properties
+FIRST-LOGIN.txt
+
+# IDE
+/.idea/
+*.iml

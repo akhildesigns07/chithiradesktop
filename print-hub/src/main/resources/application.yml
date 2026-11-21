@@ -1,0 +1,108 @@
+# Chithira Print Hub settings.
+# Put a copy of this file next to print-hub.jar to override any value (Spring Boot reads ./application.yml).
+# Secrets can come from environment variables: ${PRINTHUB_DB_PASSWORD}
+
+server:
+  port: 8080
+  address: 0.0.0.0          # reachable from the desktops on the shop network
+  servlet:
+    session:
+      timeout: 8h
+
+spring:
+  application:
+    name: print-hub
+  datasource:
+    url: ${PRINTHUB_DB_URL:jdbc:postgresql://localhost:5432/printhub}
+    username: ${PRINTHUB_DB_USER:postgres}
+    password: ${PRINTHUB_DB_PASSWORD:admin}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none        # the schema is owned by Flyway (db/migration)
+  flyway:
+    enabled: true
+  thymeleaf:
+    cache: true
+  task:
+    scheduling:
+      pool:
+        size: 2         # Fiery status poll + quick checks + paper sync
+
+printhub:
+  # Name shown in the page header
+  shop-name: Chithira Printers
+  features:
+    # Optional modules. Off = hidden from menus and the page-access matrix.
+    customer-portal: false
+    reports: false
+    billing: false
+    payment-reminders: false
+    inventory: false
+
+  # ---------------------------------------------------------------- Fiery (job status + paper catalog)
+  # The hub follows every job sent with the API until the Fiery has printed and deleted it.
+  fiery:
+    enabled: true
+    base-url: https://localhost:8443
+    base-path: /live/api/v5
+    api-key: MOCK-KEY
+    username: test
+    password: test
+    # Fiery servers use a self-signed certificate (shop network only)
+    trust-self-signed-certificate: true
+    # How often every job still on the Fiery is checked (minimum 5). New jobs are also checked
+    # ~3 s after the desktop reports them, and a job that seems deleted is re-checked after 5 s.
+    poll-seconds: 10
+    # Re-read the paper catalog this often (also: "Sync from Fiery" on the Paper catalog page)
+    paper-sync-hours: 6
+    # Where the job's state is in the answer of GET /jobs/{id} (dotted path)
+    status-path: data.item.state
+    # Fiery state (lower case) → hub status. CONFIRM on your Fiery: hold a job, print it and
+    # compare with GET /live/api/v5/jobs/{id}; add any other state you see here.
+    status-map:
+      held: HELD
+      hold: HELD
+      waiting: HELD
+      spooled: HELD
+      processing: HELD
+      processed: HELD
+      printing: PRINTING
+      rip: PRINTING
+      printed: PRINTED
+      "[done printing]": PRINTED     # keys with spaces must be written in [brackets]
+      completed: PRINTED
+    # A job counts as deleted on the Fiery only after this many "not found" answers in a row
+    missing-checks-before-removed: 2
+
+  # ---------------------------------------------------------------- Print room
+  print-room:
+    # Jobs waiting longer than this for their printed / waste counts are flagged
+    counts-overdue-hours: 12
+    waste-reasons:
+      - Misprint
+      - Colour mismatch
+      - Paper jam
+      - Registration (front / back)
+      - Test / calibration print
+      - Customer changed artwork
+      - Cutting damage
+      - Other
+
+logging:
+  file:
+    name: logs/print-hub.log
+
+---
+# Development / trial: H2 file database in ./data, nothing to install.
+# Start with:  java -jar print-hub.jar --spring.profiles.active=dev
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/printhub
+    username: postgres
+    password: "admin"
+  thymeleaf:
+    cache: false

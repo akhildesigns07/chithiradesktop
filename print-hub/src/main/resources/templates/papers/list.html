@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Paper catalog')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1 class="h3 m-0">Paper catalog</h1>
+        <form method="post" th:action="@{/papers/sync}" th:if="${@access.canEdit('PAPERS') and fieryConfigured}" class="m-0">
+            <button class="btn btn-outline-primary">↻ Sync from Fiery</button></form>
+    </div>
+    <p class="small text-body-secondary">
+        <span th:unless="${fieryConfigured}">The Fiery connection is off (<code>printhub.fiery</code>), so papers are not synced.</span>
+        <span th:if="${fieryConfigured}">Synced from the Fiery every few hours.
+            <span th:if="${lastSyncAt}" th:text="'Last sync ' + ${@fmt.ago(lastSyncAt)} + '.'"></span>
+            <span class="text-danger" th:if="${lastError}" th:text="'Last sync failed: ' + ${lastError}"></span></span>
+        Usage counts only jobs whose printed and waste counts were entered.
+    </p>
+    <table class="table align-middle">
+        <thead><tr><th>Paper</th><th>Size</th><th>Weight</th><th>Type</th><th>Tray</th>
+            <th class="text-end">Jobs</th><th class="text-end">Printed</th><th class="text-end">Waste</th><th class="text-end">Waste %</th></tr></thead>
+        <tbody>
+        <tr th:each="p : ${papers}" th:with="u=${usage.get(p.fieryPcmid)} ?: ${noUsage}"
+            th:classappend="${p.active} ? '' : 'text-body-secondary'">
+            <td><span th:text="${p.name}"></span> <span class="small text-body-secondary" th:text="'[' + ${p.fieryPcmid} + ']'"></span>
+                <span class="badge text-bg-secondary" th:unless="${p.active}">no longer on Fiery</span></td>
+            <td class="small" th:text="${p.sizeLabel}"></td>
+            <td th:text="${p.weightGsm} ? ${p.weightGsm} + ' gsm' : '–'"></td>
+            <td class="small" th:text="${p.mediaType} + (${p.coating} ? ', ' + ${p.coating} : '')"></td>
+            <td th:text="${p.tray} ?: '–'"></td>
+            <td class="text-end" th:text="${u.jobs}"></td>
+            <td class="text-end" th:text="${u.printed}"></td>
+            <td class="text-end" th:text="${u.waste}"></td>
+            <td class="text-end" th:classappend="${u.wastePercent() >= 5} ? 'text-danger' : ''"
+                th:text="${#numbers.formatDecimal(u.wastePercent(), 1, 1)} + ' %'"></td>
+        </tr>
+        <tr th:if="${papers.empty}"><td colspan="9" class="text-center text-body-secondary py-4">No papers yet – sync from the Fiery</td></tr>
+        </tbody>
+    </table>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

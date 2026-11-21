@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Edit user')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container" style="max-width: 560px">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <h1 class="h4 mb-3">Edit <span th:text="${u.username}"></span></h1>
+    <form method="post" th:action="@{/admin/users/{id}(id=${u.id})}">
+        <div class="mb-3"><label class="form-label">Full name</label>
+            <input class="form-control" name="displayName" th:value="${u.displayName}"></div>
+        <div class="mb-3"><label class="form-label d-block">Roles</label>
+            <div class="form-check" th:each="r : ${roles}">
+                <input class="form-check-input" type="checkbox" name="roles" th:value="${r}" th:id="'r-' + ${r}"
+                       th:checked="${u.roles.contains(r)}">
+                <label class="form-check-label" th:for="'r-' + ${r}" th:text="${r.label()}"></label>
+            </div>
+        </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="active" value="true" id="active" th:checked="${u.active}">
+            <label class="form-check-label" for="active">Active (can log in)</label>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary">Save</button>
+            <a class="btn btn-outline-secondary" th:href="@{/admin/users}">Cancel</a>
+        </div>
+    </form>
+    <hr>
+    <form method="post" th:action="@{/admin/users/{id}/reset-password(id=${u.id})}"
+          onsubmit="return confirm('Give this user a new temporary password?')">
+        <button class="btn btn-outline-danger">Reset password</button>
+    </form>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Customers')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 m-0">Customers</h1>
+        <a class="btn btn-primary" th:href="@{/customers/new}" th:if="${@access.canEdit('CUSTOMERS')}">+ New customer</a>
+    </div>
+    <form class="row g-2 mb-3" method="get">
+        <div class="col-md-5"><input class="form-control" name="q" th:value="${q}" placeholder="Search name, phone, code, company, email" autofocus></div>
+        <div class="col-auto form-check mt-2 ms-2">
+            <input class="form-check-input" type="checkbox" name="inactive" value="true" id="inactive" th:checked="${inactive}">
+            <label class="form-check-label" for="inactive">Include inactive</label>
+        </div>
+        <div class="col-auto"><button class="btn btn-outline-primary">Search</button></div>
+    </form>
+    <table class="table table-hover align-middle">
+        <thead><tr><th>Code</th><th>Name</th><th>Phone</th><th>Company</th><th>Email</th><th>Added from</th><th></th></tr></thead>
+        <tbody>
+        <tr th:each="c : ${result.content}" th:classappend="${c.active} ? '' : 'text-body-secondary'">
+            <td th:text="${c.code}"></td>
+            <td><a th:href="@{/customers/{id}(id=${c.id})}" th:text="${c.name}"></a>
+                <span class="badge text-bg-secondary" th:unless="${c.active}">inactive</span></td>
+            <td th:text="${c.phone}"></td>
+            <td th:text="${c.company}"></td>
+            <td th:text="${c.email}"></td>
+            <td class="small" th:text="${c.source == 'DESKTOP'} ? 'Desktop' : 'Web'"></td>
+            <td class="text-end small text-body-secondary" th:text="${@fmt.dt(c.createdAt)}"></td>
+        </tr>
+        <tr th:if="${result.empty}"><td colspan="7" class="text-center text-body-secondary py-4">No customers found</td></tr>
+        </tbody>
+    </table>
+    <nav th:if="${result.totalPages > 1}" class="d-flex gap-2 align-items-center">
+        <a class="btn btn-sm btn-outline-secondary" th:if="${result.hasPrevious()}"
+           th:href="@{/customers(q=${q},inactive=${inactive},page=${result.number - 1})}">← Previous</a>
+        <span class="small" th:text="'Page ' + ${result.number + 1} + ' of ' + ${result.totalPages} + ' · ' + ${result.totalElements} + ' customers'"></span>
+        <a class="btn btn-sm btn-outline-secondary" th:if="${result.hasNext()}"
+           th:href="@{/customers(q=${q},inactive=${inactive},page=${result.number + 1})}">Next →</a>
+    </nav>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

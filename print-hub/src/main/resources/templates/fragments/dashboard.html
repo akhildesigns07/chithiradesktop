@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Filters: one row above the charts. Quick ranges keep the other filters. -->
+<div th:fragment="filters" class="mb-3">
+    <div class="quick-ranges mb-2">
+        <a th:each="r : ${ranges}" class="btn btn-sm"
+           th:classappend="${r.from == filter.from and r.to == filter.to} ? 'btn-primary' : 'btn-outline-secondary'"
+           th:href="@{${path}(from=${r.from},to=${r.to},customerId=${filter.customerId},paper=${filter.paperPcmid},deviceId=${filter.deviceId})}"
+           th:text="${r.label}">Range</a>
+    </div>
+    <form method="get" th:action="@{${path}}" class="filter-bar">
+        <div><label class="form-label small mb-0" for="from">From</label>
+            <input class="form-control form-control-sm" type="date" id="from" name="from" th:value="${filter.from}"></div>
+        <div><label class="form-label small mb-0" for="to">To</label>
+            <input class="form-control form-control-sm" type="date" id="to" name="to" th:value="${filter.to}"></div>
+        <div><label class="form-label small mb-0" for="paper">Paper</label>
+            <select class="form-select form-select-sm" id="paper" name="paper">
+                <option value="">All papers</option>
+                <option th:each="p : ${paperOptions}" th:value="${p.fieryPcmid}" th:text="${p.name}"
+                        th:selected="${p.fieryPcmid == filter.paperPcmid}"></option>
+            </select></div>
+        <div><label class="form-label small mb-0" for="deviceId">Desktop</label>
+            <select class="form-select form-select-sm" id="deviceId" name="deviceId">
+                <option value="">All desktops</option>
+                <option th:each="d : ${deviceOptions}" th:value="${d.id}" th:text="${d.name}"
+                        th:selected="${d.id == filter.deviceId}"></option>
+            </select></div>
+        <input type="hidden" name="customerId" th:value="${filter.customerId}" th:if="${filter.customerId}">
+        <div><button class="btn btn-sm btn-primary">Apply</button></div>
+        <div th:if="${customer}" class="ms-2 small">
+            Customer: <b th:text="${customer.code} + ' ' + ${customer.name}"></b>
+            <a th:href="@{${path}(from=${filter.from},to=${filter.to},paper=${filter.paperPcmid},deviceId=${filter.deviceId})}"
+               title="Show all customers">✕</a></div>
+    </form>
+</div>
+
+<!-- One stat tile: label, value, optional line below. Text values (a name, not a number) use a smaller size. -->
+<div th:fragment="tile(label, value, sub)" class="card stat h-100"><div class="card-body py-2">
+    <div class="stat-label" th:text="${label}">Label</div>
+    <div class="stat-value" th:classappend="${#strings.toString(value).matches('^[0-9.,% –-]*$')} ? '' : 'text-value'"
+         th:text="${value}" th:title="${value}">0</div>
+    <div class="stat-sub" th:if="${sub}" th:text="${sub}"></div>
+</div></div>
+
+<!-- Chart canvas from charts[key] -->
+<div th:fragment="canvas(key, description, tall)" class="chart-box" th:classappend="${tall} ? 'tall' : ''">
+    <canvas th:attr="data-chart=${charts.get(key)},aria-label=${description}"></canvas>
+</div>
+
+<!-- Table view of a grouping (customers, papers, desktops …) -->
+<details th:fragment="groupTable(groups, linkPath, linkParam)" class="table-view">
+    <summary>Show as table</summary>
+    <table th:replace="~{:: groupRows(${groups}, ${linkPath}, ${linkParam})}"></table>
+</details>
+
+<!-- The grouping table itself (shown open where there is no chart) -->
+<table th:fragment="groupRows(groups, linkPath, linkParam)" class="table table-sm mt-2 mb-0">
+        <thead><tr><th>Name</th><th class="num">Jobs</th><th class="num">Sheets sent</th><th class="num">Printed</th>
+            <th class="num">Waste</th><th class="num">Waste %</th></tr></thead>
+        <tbody>
+        <tr th:each="g : ${groups}">
+            <td><a th:if="${linkPath != null and g.key != null}"
+                   th:href="${linkParam == 'customerId'}
+                        ? @{${linkPath}(customerId=${g.key},from=${filter.from},to=${filter.to})}
+                        : @{${linkPath}(paper=${g.key},from=${filter.from},to=${filter.to},customerId=${filter.customerId})}"
+                   th:text="${g.label}"></a>
+                <span th:unless="${linkPath != null and g.key != null}" th:text="${g.label}"></span></td>
+            <td class="num" th:text="${#numbers.formatInteger(g.jobs, 1, 'COMMA')}"></td>
+            <td class="num" th:text="${#numbers.formatInteger(g.sheetsSent, 1, 'COMMA')}"></td>
+            <td class="num" th:text="${#numbers.formatInteger(g.printed, 1, 'COMMA')}"></td>
+            <td class="num" th:text="${#numbers.formatInteger(g.waste, 1, 'COMMA')}"></td>
+            <td class="num" th:text="${g.printed + g.waste > 0} ? ${#numbers.formatDecimal(g.wastePercent(), 1, 1)} + ' %' : '–'"></td>
+        </tr>
+        <tr th:if="${groups.empty}"><td colspan="6" class="text-body-secondary">No jobs</td></tr>
+        </tbody>
+</table>
+
+<!-- Table view of the daily series -->
+<details th:fragment="dailyTable(days)" class="table-view">
+    <summary>Show as table</summary>
+    <table class="table table-sm mt-2 mb-0">
+        <thead><tr><th>Day</th><th class="num">Jobs</th><th class="num">Sheets sent</th><th class="num">Printed</th>
+            <th class="num">Waste</th><th class="num">Waste %</th></tr></thead>
+        <tbody>
+        <tr th:each="d : ${days}" th:if="${d.jobs > 0}">
+            <td th:text="${#temporals.format(d.date, 'EEE dd MMM yyyy')}"></td>
+            <td class="num" th:text="${d.jobs}"></td>
+            <td class="num" th:text="${#numbers.formatInteger(d.sheetsSent, 1, 'COMMA')}"></td>
+            <td class="num" th:text="${#numbers.formatInteger(d.printed, 1, 'COMMA')}"></td>
+            <td class="num" th:text="${#numbers.formatInteger(d.waste, 1, 'COMMA')}"></td>
+            <td class="num" th:text="${d.printed + d.waste > 0} ? ${#numbers.formatDecimal(d.wastePercent(), 1, 1)} + ' %' : '–'"></td>
+        </tr>
+        </tbody>
+    </table>
+</details>
+
+<!-- Explains what the numbers count -->
+<p th:fragment="countingNote" class="small text-body-secondary mt-3">
+    Printed and waste count only jobs whose counts the print room has entered. Sheets sent counts every job that
+    reached the Fiery or the printer. Days are by the date the job was sent.
+</p>
+
+</body>
+</html>

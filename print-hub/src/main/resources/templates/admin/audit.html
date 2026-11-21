@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Audit log')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <h1 class="h3 mb-3">Audit log</h1>
+    <form class="row g-2 mb-3" method="get">
+        <div class="col-md-2"><input class="form-control" name="action" th:value="${action}" placeholder="Action, e.g. LOGIN"></div>
+        <div class="col-md-2"><input class="form-control" name="entityType" th:value="${entityType}" placeholder="Type, e.g. CUSTOMER"></div>
+        <div class="col-md-1"><input class="form-control" name="entityId" th:value="${entityId}" placeholder="Id"></div>
+        <div class="col-md-2"><input class="form-control" name="actor" th:value="${actor}" placeholder="Who"></div>
+        <div class="col-md-2"><input class="form-control" type="date" name="from" th:value="${from}"></div>
+        <div class="col-md-2"><input class="form-control" type="date" name="to" th:value="${to}"></div>
+        <div class="col-md-1"><button class="btn btn-outline-primary w-100">Filter</button></div>
+    </form>
+    <table class="table table-sm align-top">
+        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>What</th><th>Before</th><th>After</th><th>IP</th></tr></thead>
+        <tbody>
+        <tr th:each="a : ${result.content}">
+            <td class="text-nowrap small" th:text="${@fmt.dt(a.at)}"></td>
+            <td class="small"><span th:text="${a.actorName}"></span>
+                <span class="badge text-bg-light" th:text="${a.actorType}"></span></td>
+            <td><span class="badge text-bg-secondary" th:text="${a.action}"></span></td>
+            <td class="small text-nowrap" th:text="${a.entityType} ? ${a.entityType} + ' ' + (${a.entityId} ?: '') : ''"></td>
+            <td class="small" th:text="${a.summary}"></td>
+            <td><pre class="json" th:text="${a.beforeJson}"></pre></td>
+            <td><pre class="json" th:text="${a.afterJson}"></pre></td>
+            <td class="small" th:text="${a.ip}"></td>
+        </tr>
+        <tr th:if="${result.empty}"><td colspan="8" class="text-center text-body-secondary py-4">Nothing found</td></tr>
+        </tbody>
+    </table>
+    <nav th:if="${result.totalPages > 1}" class="d-flex gap-2 align-items-center">
+        <a class="btn btn-sm btn-outline-secondary" th:if="${result.hasPrevious()}"
+           th:href="@{/admin/audit(action=${action},entityType=${entityType},entityId=${entityId},actor=${actor},from=${from},to=${to},page=${result.number - 1})}">← Newer</a>
+        <span class="small" th:text="'Page ' + ${result.number + 1} + ' of ' + ${result.totalPages}"></span>
+        <a class="btn btn-sm btn-outline-secondary" th:if="${result.hasNext()}"
+           th:href="@{/admin/audit(action=${action},entityType=${entityType},entityId=${entityId},actor=${actor},from=${from},to=${to},page=${result.number + 1})}">Older →</a>
+    </nav>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

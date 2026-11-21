@@ -1,0 +1,30 @@
+<!--
+  Windows service definition for Chithira Print Hub (read by PrintHubService.exe = WinSW).
+  install-service.bat installs it; uninstall-service.bat removes it.
+-->
+<service>
+  <id>PrintHub</id>
+  <name>Chithira Print Hub</name>
+  <description>Print Hub web application: customers, print and waste tracking, dashboards (http://localhost:8080).</description>
+
+  <!-- the Java bundled in this folder runs the Print Hub; settings come from config\ -->
+  <executable>%BASE%\runtime\bin\java.exe</executable>
+  <arguments>-Xmx1g -Dfile.encoding=UTF-8 -jar "%BASE%\app\print-hub.jar"</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <!-- start with Windows, a little after boot so PostgreSQL is up first -->
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+
+  <!-- if it stops unexpectedly (e.g. PostgreSQL not ready yet), try again -->
+  <onfailure action="restart" delay="20 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <resetfailure>1 hour</resetfailure>
+
+  <stoptimeout>30 sec</stoptimeout>
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>

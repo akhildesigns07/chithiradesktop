@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Waste dashboard')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4 pb-4" th:with="t=${data.totals}">
+    <h1 class="h3 mb-2">Waste dashboard</h1>
+    <div th:replace="~{fragments/dashboard :: filters}"></div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Waste sheets', ${#numbers.formatInteger(t.waste, 1, 'COMMA')}, 'of ' + ${#numbers.formatInteger(t.printed + t.waste, 1, 'COMMA')} + ' counted sheets')}"></div></div>
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Waste %', ${#numbers.formatDecimal(t.wastePercent(), 1, 1)} + ' %', 'waste ÷ (printed + waste)')}"></div></div>
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Jobs with waste', ${t.jobsWithWaste}, 'of ' + ${t.countedJobs} + ' counted jobs')}"></div></div>
+        <div class="col-6 col-lg-3"><div th:replace="~{fragments/dashboard :: tile('Top reason', ${data.wasteByReason.empty} ? '–' : ${data.wasteByReason[0].label}, ${data.wasteByReason.empty} ? '' : ${#numbers.formatInteger(data.wasteByReason[0].waste, 1, 'COMMA')} + ' sheets')}"></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Waste % per day</h2>
+            <div class="chart-note mb-2">Days without counted jobs are left out</div>
+            <div th:replace="~{fragments/dashboard :: canvas('wastePercent', 'Waste percent per day', false)}"></div>
+            <div th:replace="~{fragments/dashboard :: dailyTable(${data.days})}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Waste sheets by reason</h2>
+            <div class="chart-note mb-2">As entered by the print room</div>
+            <div th:replace="~{fragments/dashboard :: canvas('reasons', 'Waste sheets by reason', false)}"></div>
+            <details class="table-view"><summary>Show as table</summary>
+                <table class="table table-sm mt-2 mb-0">
+                    <thead><tr><th>Reason</th><th class="num">Jobs</th><th class="num">Waste sheets</th></tr></thead>
+                    <tr th:each="g : ${data.wasteByReason}"><td th:text="${g.label}"></td><td class="num" th:text="${g.jobs}"></td>
+                        <td class="num" th:text="${#numbers.formatInteger(g.waste, 1, 'COMMA')}"></td></tr></table></details>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Waste % per paper</h2>
+            <div class="chart-note mb-2">Highest first</div>
+            <div th:replace="~{fragments/dashboard :: canvas('papers', 'Waste percent per paper', false)}"></div>
+            <div th:replace="~{fragments/dashboard :: groupTable(${data.byPaper}, '/dashboards/papers', 'paper')}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Waste sheets per front-staff operator</h2>
+            <div class="chart-note mb-2">Windows user who sent the job</div>
+            <div th:replace="~{fragments/dashboard :: canvas('operators', 'Waste sheets per operator', false)}"></div>
+            <div th:replace="~{fragments/dashboard :: groupTable(${data.byOperator}, null, null)}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card h-100"><div class="card-body">
+            <h2 class="h6">Waste per customer</h2>
+            <th:block th:with="link=${@access.canView('CUSTOMER_DASHBOARD')} ? '/dashboards/customers' : null"><table th:replace="~{fragments/dashboard :: groupRows(${data.byCustomer}, ${link}, 'customerId')}"></table></th:block>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card h-100"><div class="card-body">
+            <h2 class="h6">Waste per desktop</h2>
+            <table th:replace="~{fragments/dashboard :: groupRows(${data.byDevice}, null, null)}"></table>
+        </div></div></div>
+        <div class="col-12"><div class="card"><div class="card-body">
+            <h2 class="h6">Jobs with the most waste</h2>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Job</th><th>Customer</th><th>Paper</th><th class="num">Printed</th><th class="num">Waste</th>
+                    <th class="num">Waste %</th><th>Reason</th></tr></thead>
+                <tr th:each="j : ${data.worstWaste}">
+                    <td><a th:if="${@access.canView('PRINT_JOBS')}" th:href="@{/jobs/{id}(id=${j.jobId})}" th:text="${j.fileName}"></a>
+                        <span th:unless="${@access.canView('PRINT_JOBS')}" th:text="${j.fileName}"></span></td>
+                    <td th:text="${j.customerName}"></td><td class="small" th:text="${j.paperName}"></td>
+                    <td class="num" th:text="${j.printed}"></td><td class="num" th:text="${j.waste}"></td>
+                    <td class="num" th:text="${#numbers.formatDecimal(j.wastePercent(), 1, 1)} + ' %'"></td>
+                    <td class="small" th:text="${j.reason}"></td></tr>
+                <tr th:if="${data.worstWaste.empty}"><td colspan="7" class="text-body-secondary">No waste recorded in this range</td></tr>
+            </table>
+        </div></div></div>
+    </div>
+    <p th:replace="~{fragments/dashboard :: countingNote}"></p>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<th:block th:replace="~{fragments/layout :: chartScripts}"></th:block>
+</body>
+</html>
