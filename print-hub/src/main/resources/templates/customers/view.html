@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${c.name})}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <div class="text-body-secondary small" th:text="${c.code}"></div>
+            <h1 class="h3 m-0"><span th:text="${c.name}"></span>
+                <span class="badge text-bg-secondary fs-6" th:unless="${c.active}">inactive</span></h1>
+        </div>
+        <div class="d-flex gap-2" th:if="${@access.canEdit('CUSTOMERS')}">
+            <a class="btn btn-outline-primary" th:href="@{/customers/{id}/edit(id=${c.id})}">Edit</a>
+            <form method="post" th:action="@{/customers/{id}/active(id=${c.id})}" class="m-0">
+                <input type="hidden" name="active" th:value="${!c.active}">
+                <button class="btn btn-outline-secondary" th:text="${c.active} ? 'Deactivate' : 'Reactivate'"></button>
+            </form>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="card"><div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-4">Phone</dt><dd class="col-8" th:text="${c.phone} ?: '–'"></dd>
+                    <dt class="col-4">Email</dt><dd class="col-8" th:text="${c.email} ?: '–'"></dd>
+                    <dt class="col-4">Company</dt><dd class="col-8" th:text="${c.company} ?: '–'"></dd>
+                    <dt class="col-4">GSTIN</dt><dd class="col-8" th:text="${c.gstin} ?: '–'"></dd>
+                    <dt class="col-4">Address</dt><dd class="col-8" style="white-space: pre-line" th:text="${c.address} ?: '–'"></dd>
+                    <dt class="col-4">Notes</dt><dd class="col-8" style="white-space: pre-line" th:text="${c.notes} ?: '–'"></dd>
+                    <dt class="col-4">Created</dt>
+                    <dd class="col-8"><span th:text="${@fmt.dt(c.createdAt)}"></span> by <span th:text="${c.createdBy}"></span>
+                        (<span th:text="${c.source == 'DESKTOP'} ? 'desktop' : 'web'"></span>)</dd>
+                </dl>
+            </div></div>
+        </div>
+        <div class="col-lg-7">
+            <div class="alert alert-info">This customer's prints, waste and papers used will appear here once print
+                tracking is switched on (next phase).</div>
+            <h2 class="h6">History</h2>
+            <table class="table table-sm">
+                <tr th:each="a : ${history}">
+                    <td class="text-nowrap small" th:text="${@fmt.dt(a.at)}"></td>
+                    <td class="small" th:text="${a.actorName}"></td>
+                    <td class="small" th:text="${a.summary}"></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

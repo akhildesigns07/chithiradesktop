@@ -1,0 +1,13 @@
+:root { --hub-accent: #1f5fa8; }
+body { background: #f6f7f9; }
+.hub-nav { background: #fff; border-bottom: 1px solid #e3e6ea; }
+.navbar-brand { color: var(--hub-accent) !important; }
+.login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.login-card { width: 100%; max-width: 380px; margin: 16px; }
+.stat .stat-label { font-size: .8rem; color: #6c757d; text-transform: uppercase; letter-spacing: .03em; }
+.stat .stat-value { font-size: 1.9rem; font-weight: 600; color: #212529; }
+.secret-box code { background: #fff; padding: 2px 8px; border-radius: 4px; word-break: break-all; }
+.matrix th, .matrix td { text-align: center; vertical-align: middle; }
+.matrix th:first-child, .matrix td:first-child { text-align: left; }
+.json { font-size: .75rem; white-space: pre-wrap; word-break: break-all; max-width: 420px; margin: 0; }
+table.table { background: #fff; }

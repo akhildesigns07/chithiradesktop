@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Desktops & API keys')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <h1 class="h3 mb-3">Desktops &amp; API keys</h1>
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <table class="table align-middle">
+                <thead><tr><th>Desktop</th><th>Key</th><th>Status</th><th>Last seen</th><th>Version</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="d : ${devices}" th:classappend="${d.status.name() == 'REVOKED'} ? 'text-body-secondary' : ''">
+                    <td><div th:text="${d.name}"></div><div class="small text-body-secondary" th:text="${d.location}"></div></td>
+                    <td><code th:text="'chp_' + ${d.keyPrefix} + '_…'"></code></td>
+                    <td><span class="badge" th:classappend="${d.status.name() == 'ACTIVE'} ? 'text-bg-success' : 'text-bg-secondary'"
+                              th:text="${d.status}"></span></td>
+                    <td class="small"><span th:text="${@fmt.ago(d.lastSeenAt)}"></span>
+                        <div class="text-body-secondary" th:text="${d.lastIp}"></div></td>
+                    <td class="small" th:text="${d.appVersion}"></td>
+                    <td class="text-end text-nowrap">
+                        <form method="post" class="d-inline" th:action="@{/admin/devices/{id}/rotate(id=${d.id})}"
+                              onsubmit="return confirm('Make a new key? The old key stops working immediately.')">
+                            <button class="btn btn-sm btn-outline-primary">New key</button></form>
+                        <form method="post" class="d-inline" th:if="${d.status.name() == 'ACTIVE'}"
+                              th:action="@{/admin/devices/{id}/revoke(id=${d.id})}"
+                              onsubmit="return confirm('Revoke this key? The desktop can no longer connect.')">
+                            <button class="btn btn-sm btn-outline-danger">Revoke</button></form>
+                    </td>
+                </tr>
+                <tr th:if="${devices.empty}"><td colspan="6" class="text-center text-body-secondary py-4">No desktops registered yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-lg-4">
+            <div class="card mb-3"><div class="card-body">
+                <h2 class="h6">Register a desktop</h2>
+                <form method="post" th:action="@{/admin/devices}">
+                    <div class="mb-2"><label class="form-label">Name</label>
+                        <input class="form-control" name="name" placeholder="Front-PC-1" required></div>
+                    <div class="mb-3"><label class="form-label">Location</label>
+                        <input class="form-control" name="location" placeholder="Front counter"></div>
+                    <button class="btn btn-primary">Register &amp; create key</button>
+                </form>
+            </div></div>
+            <div class="card"><div class="card-body small">
+                <h2 class="h6">On the desktop</h2>
+                In <code>fiery-hotfolder.properties</code>:
+                <pre class="mb-0 mt-2">hub.enabled=true
+hub.base-url=<span th:text="${hubUrl}"></span>
+hub.api-key=chp_…</pre>
+            </div></div>
+        </div>
+    </div>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title} + ' · Print Hub'">Print Hub</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.3/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/hub.css}">
+</head>
+<body>
+
+<nav th:fragment="nav" class="navbar navbar-expand-lg hub-nav mb-3">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-semibold" th:href="@{/}" th:text="${shopName} + ' · Print Hub'">Print Hub</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#hubnav"
+                aria-label="Menu"><span class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="hubnav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item dropdown" th:each="section : ${menu}">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                       th:text="${section.key}">Section</a>
+                    <ul class="dropdown-menu">
+                        <li th:each="p : ${section.value}">
+                            <a class="dropdown-item" th:href="@{${p.path()}}" th:text="${p.label()}">Page</a></li>
+                    </ul>
+                </li>
+            </ul>
+            <div class="d-flex align-items-center gap-2" th:if="${me != null}">
+                <span class="small text-body-secondary">
+                    <span th:text="${me.displayName}">Name</span>
+                    · <span th:each="r, st : ${me.roles}" th:text="${r.label()} + (${st.last} ? '' : ', ')"></span>
+                </span>
+                <a class="btn btn-sm btn-outline-secondary" th:href="@{/account/password}">Password</a>
+                <form th:action="@{/logout}" method="post" class="m-0">
+                    <button class="btn btn-sm btn-outline-secondary">Log out</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div th:fragment="flash">
+    <div class="alert alert-success" th:if="${ok}" th:text="${ok}"></div>
+    <div class="alert alert-danger" th:if="${error}" th:text="${error}"></div>
+    <div class="alert alert-warning secret-box" th:if="${secret}">
+        <div class="fw-semibold" th:text="${secretTitle}"></div>
+        <div class="d-flex gap-2 align-items-center my-2">
+            <code class="fs-5 user-select-all" id="secret" th:text="${secret}"></code>
+            <button type="button" class="btn btn-sm btn-outline-dark"
+                    onclick="navigator.clipboard.writeText(document.getElementById('secret').textContent)">Copy</button>
+        </div>
+        <div class="small" th:text="${secretNote}"></div>
+    </div>
+</div>
+
+<th:block th:fragment="scripts">
+    <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
+</th:block>
+
+</body>
+</html>

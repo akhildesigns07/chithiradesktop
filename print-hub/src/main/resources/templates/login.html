@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Log in')}"></head>
+<body class="login-page">
+<main class="login-card card shadow-sm">
+    <div class="card-body p-4">
+        <h1 class="h4 mb-1" th:text="${shopName}">Shop</h1>
+        <p class="text-body-secondary mb-4">Print Hub · staff login</p>
+        <div class="alert alert-danger py-2" th:if="${param.error}">Wrong username or password, or the account is inactive.</div>
+        <div class="alert alert-success py-2" th:if="${param.logout}">You have logged out.</div>
+        <form th:action="@{/login}" method="post">
+            <div class="mb-3">
+                <label class="form-label" for="username">Username</label>
+                <input class="form-control" id="username" name="username" autocomplete="username" autofocus required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
+            </div>
+            <button class="btn btn-primary w-100">Log in</button>
+        </form>
+    </div>
+</main>
+</body>
+</html>

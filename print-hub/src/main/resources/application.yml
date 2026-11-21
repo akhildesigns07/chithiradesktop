@@ -1,0 +1,56 @@
+# Chithira Print Hub settings.
+# Put a copy of this file next to print-hub.jar to override any value (Spring Boot reads ./application.yml).
+# Secrets can come from environment variables: ${PRINTHUB_DB_PASSWORD}
+
+server:
+  port: 8080
+  address: 0.0.0.0          # reachable from the desktops on the shop network
+  servlet:
+    session:
+      timeout: 8h
+
+spring:
+  application:
+    name: print-hub
+  datasource:
+    url: ${PRINTHUB_DB_URL:jdbc:postgresql://localhost:5432/printhub}
+    username: ${PRINTHUB_DB_USER:admin}
+    password: ${PRINTHUB_DB_PASSWORD:admin}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none        # the schema is owned by Flyway (db/migration)
+  flyway:
+    enabled: true
+  thymeleaf:
+    cache: true
+
+printhub:
+  # Name shown in the page header
+  shop-name: Chithira Printers
+  features:
+    # Optional modules. Off = hidden from menus and the page-access matrix.
+    customer-portal: false
+    reports: false
+    billing: false
+    payment-reminders: false
+    inventory: false
+
+logging:
+  file:
+    name: logs/print-hub.log
+
+---
+# Development / trial: H2 file database in ./data, nothing to install.
+# Start with:  java -jar print-hub.jar --spring.profiles.active=dev
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    #url: jdbc:h2:file:./data/printhub;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE
+    url: jdbc:postgresql://localhost:5432/printhub
+    username: admin
+    password: "admin"
+  thymeleaf:
+    cache: false

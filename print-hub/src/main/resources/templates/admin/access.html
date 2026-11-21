@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Page access')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <h1 class="h3">Page access</h1>
+    <p class="text-body-secondary">Tick what each role may <b>view</b> and <b>edit</b> (edit includes view).
+        Admin always has full access. Admin pages are for Admin only.</p>
+    <form method="post" th:action="@{/admin/access}">
+        <table class="table matrix">
+            <thead>
+            <tr><th rowspan="2">Page</th><th th:each="r : ${roles}" colspan="2" th:text="${r.label()}"></th></tr>
+            <tr><th:block th:each="r : ${roles}"><th class="small">View</th><th class="small">Edit</th></th:block></tr>
+            </thead>
+            <tbody>
+            <tr th:each="p : ${pages}">
+                <td><span th:text="${p.label()}"></span>
+                    <span class="badge text-bg-light" th:unless="${p.built()}">coming</span></td>
+                <th:block th:each="r : ${roles}" th:with="x=${@access.entry(r, p)}">
+                    <td><input class="form-check-input" type="checkbox" name="box" th:value="'V:' + ${r} + ':' + ${p}"
+                               th:checked="${x != null and x.canView}"></td>
+                    <td><input class="form-check-input" type="checkbox" name="box" th:value="'E:' + ${r} + ':' + ${p}"
+                               th:checked="${x != null and x.canEdit}"></td>
+                </th:block>
+            </tr>
+            </tbody>
+        </table>
+        <button class="btn btn-primary">Save access</button>
+    </form>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>
