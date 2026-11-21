@@ -23,15 +23,24 @@ mvn -f print-hub/pom.xml package
 java -jar print-hub/target/print-hub.jar --spring.profiles.active=dev
 ```
 
-**Shop host (Windows):** uses PostgreSQL.
+**Shop host (Windows), no code or Java needed:** download the ready-made package.
 
-1. Install PostgreSQL 16, then create the database and user: `CREATE USER printhub PASSWORD '…'; CREATE DATABASE printhub OWNER printhub;`
-2. Put `print-hub.jar` and a copy of `src/main/resources/application.yml` in, for example, `C:\PrintHub\`. Set the database password, preferably with the environment variable `PRINTHUB_DB_PASSWORD`.
-3. Run `java -jar print-hub.jar`, or install it as a Windows service with WinSW. Allow port 8080 in the Windows firewall.
+1. On GitHub: **Actions → Build Windows EXE → Run workflow**, choose your branch, then download the
+   **`PrintHub-windows`** artifact. It contains the Print Hub with its own Java, the Windows service wrapper (WinSW)
+   and double-click scripts. The package's source files are in `packaging/windows/`.
+2. Install **PostgreSQL 16** (the only other install) and unzip the package to `C:\PrintHub`.
+3. Double-click **`setup-database.bat`**. It creates the `printhub` database and user, and saves the password in `config\application.properties`.
+4. Right-click **`install-service.bat` → Run as administrator**. This installs the service (it starts with the PC
+   and restarts itself after a failure), starts it, allows port 8080 on private networks, and opens the browser and
+   `FIRST-LOGIN.txt` with the first admin password.
+
+Settings are in `config\application.yml` (port, shop name, Fiery). Run `restart-service.bat` after changing them.
+`README-WINDOWS.txt` in the package walks through everything, including updating and removing.
 
 Flyway creates and upgrades the tables on start (`src/main/resources/db/migration`).
 
-**First start:** the log prints a one-time password for `admin`. Log in at `http://<host>:8080`, and you will be asked to choose a new password.
+**First start:** a one-time password for `admin` is printed to the log and written to `FIRST-LOGIN.txt` in the working
+folder. Log in at `http://<host>:8080` and choose your own password; the file is deleted then.
 
 ## Fiery connection (job status and paper catalog)
 

@@ -7,6 +7,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Set;
@@ -88,6 +91,16 @@ public class UserService {
         user.setPasswordHash(encoder.encode(next));
         user.setMustChangePassword(false);
         audit.record("USER_PASSWORD_CHANGED", "USER", id, user.getUsername() + " changed their password", null, null);
+        if (user.getRoles().contains(Role.ADMIN)) deleteFirstLoginFile();
+    }
+
+    /** The first-start password file is useless (and shouldn't linger) once an admin has their own password. */
+    private static void deleteFirstLoginFile() {
+        try {
+            Files.deleteIfExists(Path.of(InitialDataLoader.FIRST_LOGIN_FILE));
+        } catch (IOException ignored) {
+            // not important: the password in it no longer works
+        }
     }
 
     static String temporaryPassword() {

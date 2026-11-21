@@ -1,0 +1,34 @@
+# =====================================================================
+#  Chithira Print Hub - settings for this PC
+#  Edit with Notepad, save, then run restart-service.bat.
+#  The database password is kept separately in application.properties
+#  (written by setup-database.bat).
+# =====================================================================
+
+server:
+  # Address of the Print Hub: http://<this PC's IP>:8080
+  # If you change the port, also change PORT in install-service.bat (firewall rule).
+  port: 8080
+
+spring:
+  datasource:
+    # PostgreSQL on this PC. setup-database.bat creates the database "printhub" and the user "printhub".
+    url: jdbc:postgresql://localhost:5432/printhub
+    username: printhub
+
+printhub:
+  # Name shown in the page header
+  shop-name: Chithira Printers
+
+  # Fiery connection: job status every 10 s and the paper catalog.
+  # Fill in the Fiery address and login, set enabled: true, then run restart-service.bat.
+  fiery:
+    enabled: false
+    base-url: https://192.168.1.50
+    api-key: ""
+    username: ""
+    password: ""
+    poll-seconds: 10
+
+  print-room:
+    counts-overdue-hours: 12
