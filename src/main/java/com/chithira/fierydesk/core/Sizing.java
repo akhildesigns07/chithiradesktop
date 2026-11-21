@@ -1,13 +1,17 @@
 package com.chithira.fierydesk.core;
 
+import com.chithira.fierydesk.document.FilePageSize;
 import com.chithira.fierydesk.document.PageSpec;
 import com.chithira.fierydesk.fiery.Paper;
+
+import java.nio.file.Path;
 
 /** How an image is placed on the chosen paper when it is converted to PDF. */
 public enum Sizing {
     FIT("Fit to paper (whole image)"),
     FILL("Fill paper (crop edges)"),
-    ACTUAL("Actual size @300 DPI");
+    /** Page size = the file's own size (image at its stored DPI, else 300); the Fiery is told that size. */
+    ACTUAL("Actual size – page size = file size");
 
     private final String label;
     Sizing(String label) { this.label = label; }
@@ -18,6 +22,11 @@ public enum Sizing {
         }
         return new PageSpec(paper.widthInch(), paper.heightInch(),
                 this == FILL ? PageSpec.Fit.FILL : PageSpec.Fit.FIT, true);
+    }
+
+    /** Like {@link #pageSpec(Paper)}, but "actual size" uses the DPI stored in this image file. */
+    public PageSpec pageSpec(Paper paper, Path file) {
+        return this == ACTUAL ? PageSpec.actualSize(FilePageSize.imageDpi(file)) : pageSpec(paper);
     }
 
     /** For driver printing: a paper size in inches (null = unknown, use the image size). */

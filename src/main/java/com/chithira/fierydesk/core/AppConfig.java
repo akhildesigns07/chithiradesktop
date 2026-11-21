@@ -1,6 +1,7 @@
 package com.chithira.fierydesk.core;
 
 import com.chithira.fierydesk.App;
+import com.chithira.fierydesk.document.FilePageSize;
 import com.chithira.fierydesk.impose.Orientation;
 import com.chithira.fierydesk.impose.Preset;
 
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -145,6 +147,13 @@ public final class AppConfig {
     public double imposeBackOffsetXmm = 0;
     public double imposeBackOffsetYmm = 0;
     public boolean autoPairFrontBack = true;
+    /**
+     * "Actual size – page size = file size": job attributes that carry the file's page size to the Fiery
+     * (blank list = don't send any), the unit and the value template ({w} and {h}).
+     */
+    public List<String> pageSizeAttributes = List.of("PageSize", "EFPrintSize");
+    public FilePageSize.Unit pageSizeUnit = FilePageSize.Unit.IN;
+    public String pageSizeFormat = "{w}x{h}";
     public String duplexAttributeName = "duplex";
     public String duplexAttributeValue = "true";
     public boolean lastImpose = false;
@@ -227,6 +236,14 @@ public final class AppConfig {
         c.imposeBackOffsetYmm = decimal(p, "impose.back-offset-y-mm", 0, c);
         c.autoPairFrontBack = bool(p, "frontback.auto-pair", true, c);
         c.duplexAttributeName = get(p, "api.duplex-attribute-name", c.duplexAttributeName, c);
+        c.pageSizeAttributes = Arrays.stream(get(p, "api.page-size-attributes", String.join(",", c.pageSizeAttributes), c).split(","))
+                .map(String::trim).filter(name -> !name.isEmpty()).toList();
+        c.pageSizeUnit = FilePageSize.Unit.parse(get(p, "api.page-size-unit", "in", c), FilePageSize.Unit.IN);
+        c.pageSizeFormat = get(p, "api.page-size-format", c.pageSizeFormat, c);
+        if (!c.pageSizeFormat.contains("{w}") || !c.pageSizeFormat.contains("{h}")) {
+            c.problems.add("api.page-size-format must contain {w} and {h} (now: " + c.pageSizeFormat + ")");
+            c.pageSizeFormat = "{w}x{h}";
+        }
         c.duplexAttributeValue = get(p, "api.duplex-attribute-value", c.duplexAttributeValue, c);
 
         c.hub = new HubSettings(
@@ -411,6 +428,17 @@ public final class AppConfig {
                 # setting duplex on a held job in Command WorkStation and reading GET /jobs/{id}
                 api.duplex-attribute-name=duplex
                 api.duplex-attribute-value=true
+
+                # ---------------------------------------------------------------- Actual size (page size = file size)
+                # With "Actual size – page size = file size", the job tells the Fiery the file's own page size
+                # (image: pixels at its stored DPI, else 300; PDF: first page; PostScript: bounding box).
+                # Attributes to set (comma separated; blank = send none). Your Fiery shows PageSize and EFPrintSize
+                # as e.g. "13x19". CONFIRM once: send a small card in this mode and compare with GET /jobs/{id}.
+                api.page-size-attributes=PageSize,EFPrintSize
+                # Unit for {w} and {h}: in, mm or pt
+                api.page-size-unit=in
+                # Value written, e.g. {w}x{h} -> 3.5x2
+                api.page-size-format={w}x{h}
 
                 # ---------------------------------------------------------------- Print Hub (web application)
                 # Customers and job tracking. Register this PC in the hub: Admin > Desktops & API keys

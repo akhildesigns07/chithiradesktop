@@ -2,6 +2,7 @@ package com.chithira.fierydesk.core;
 
 import com.chithira.fierydesk.document.DocumentException;
 import com.chithira.fierydesk.document.DocumentNormalizer;
+import com.chithira.fierydesk.document.FilePageSize;
 import com.chithira.fierydesk.document.FileKind;
 import com.chithira.fierydesk.document.PreparedDocument;
 import com.chithira.fierydesk.fiery.FieryClient;
@@ -50,6 +51,9 @@ public final class JobProcessor {
     private final int warnDpi;
     private final String duplexAttributeName;
     private final String duplexAttributeValue;
+    private final List<String> pageSizeAttributes;
+    private final FilePageSize.Unit pageSizeUnit;
+    private final String pageSizeFormat;
 
     public JobProcessor(FieryClient fiery, AppConfig cfg) {
         this.fiery = fiery;
@@ -58,6 +62,9 @@ public final class JobProcessor {
         this.warnDpi = cfg.warnDpi;
         this.duplexAttributeName = cfg.duplexAttributeName;
         this.duplexAttributeValue = cfg.duplexAttributeValue;
+        this.pageSizeAttributes = cfg.pageSizeAttributes;
+        this.pageSizeUnit = cfg.pageSizeUnit;
+        this.pageSizeFormat = cfg.pageSizeFormat;
         this.imageMode = cfg.imageMode;
         this.afterSend = cfg.afterSend;
         this.useOriginalFileName = cfg.useOriginalFileName;
@@ -91,6 +98,8 @@ public final class JobProcessor {
             if (r.sheet() != null && r.sheet().duplex() && duplexAttributeName != null && !duplexAttributeName.isBlank()) {
                 o.attribute(duplexAttributeName, duplexAttributeValue);
             }
+            String pageSizeInfo = applyFilePageSize(r, o);
+            if (pageSizeInfo != null) sheetInfo = sheetInfo == null ? pageSizeInfo : sheetInfo + ", " + pageSizeInfo;
 
             // Like Ctrl+P: the Fiery shows the original name (e.g. photo.jpg); the content is PDF/PostScript
             String uploadName = useOriginalFileName ? originalUploadName(r) : doc.filename();
@@ -112,6 +121,21 @@ public final class JobProcessor {
                     moved.equals(r.file()) ? "left in hot folder" : "moved to " + moved + (r.back() == null ? "" : " (with its back)"));
             throw e;
         }
+    }
+
+    /**
+     * "Actual size – page size = file size": tells the Fiery the file's own page size through the configured
+     * attributes (e.g. PageSize=3.5x2). Not for imposed / front-back sheets, which have the paper's size.
+     *
+     * @return e.g. "page 3.5 × 2 in (89 × 51 mm) from image at its 600 DPI", or null when nothing was set
+     */
+    String applyFilePageSize(JobRequest r, JobOptions o) {
+        if (r.sheet() != null || r.sizing() != Sizing.ACTUAL || pageSizeAttributes.isEmpty()) return null;
+        Optional<FilePageSize> size = FilePageSize.of(r.file());
+        if (size.isEmpty()) return "page size unknown – not sent";
+        String value = size.get().format(pageSizeFormat, pageSizeUnit);
+        for (String attribute : pageSizeAttributes) o.attribute(attribute, value);
+        return "page " + size.get().label() + " from " + size.get().source() + " (" + String.join(", ", pageSizeAttributes) + "=" + value + ")";
     }
 
     /** Original file name with extension; a job name typed in the window keeps the original extension. */
@@ -145,7 +169,7 @@ public final class JobProcessor {
             return new PreparedDocument(bytes, DocumentNormalizer.safeName(r.jobName()) + ext, kind.mimeType(),
                     kind, null, List.of("Sent unconverted"));
         }
-        return normalizer.prepare(bytes, r.jobName(), r.sizing().pageSpec(r.paper()), r.allowLowRes());
+        return normalizer.prepare(bytes, r.jobName(), r.sizing().pageSpec(r.paper(), r.file()), r.allowLowRes());
     }
 
     /** Delete or move a file after it was printed/sent successfully. Returns what happened. */
@@ -191,7 +215,7 @@ public final class JobProcessor {
         if (kind != FileKind.PDF) {
             Optional<Dimension> px = DocumentNormalizer.imageSize(r.file());
             if (px.isEmpty()) throw new DocumentException("Unsupported file type. Use JPG, PNG, TIFF, BMP, GIF, WebP, PSD or PDF.");
-            dpi = r.sizing().pageSpec(r.paper()).layout(px.get().width, px.get().height).dpi();
+            dpi = r.sizing().pageSpec(r.paper(), r.file()).layout(px.get().width, px.get().height).dpi();
             if (dpi < minDpi && !r.allowLowRes()) {
                 throw new DocumentException("Image is only " + dpi + " DPI at this size (minimum " + minDpi + ").");
             }

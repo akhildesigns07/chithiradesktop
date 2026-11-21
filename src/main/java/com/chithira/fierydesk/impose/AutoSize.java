@@ -75,22 +75,46 @@ public final class AutoSize {
             try {
                 r.setInput(in, true, false);
                 IIOMetadata md = r.getImageMetadata(0);
-                if (md == null || !md.isStandardMetadataFormatSupported()) return Optional.empty();
-                Node node = find(md.getAsTree("javax_imageio_1.0"), "HorizontalPixelSize");
-                if (node == null) return Optional.empty();
-                NamedNodeMap a = node.getAttributes();
-                double mmPerPixel = Double.parseDouble(a.getNamedItem("value").getNodeValue());
-                if (mmPerPixel <= 0) return Optional.empty();
-                double dpi = 25.4 / mmPerPixel;
-                // 72/96 are screen defaults that say nothing about print size
-                if (Math.abs(dpi - 72) < 0.5 || Math.abs(dpi - 96) < 0.5) return Optional.empty();
-                return Optional.of(dpi);
+                if (md == null) return Optional.empty();
+                Optional<Double> dpi = pngDpi(md);
+                if (dpi.isEmpty()) {
+                    if (!md.isStandardMetadataFormatSupported()) return Optional.empty();
+                    Node node = find(md.getAsTree("javax_imageio_1.0"), "HorizontalPixelSize");
+                    if (node == null) return Optional.empty();
+                    NamedNodeMap a = node.getAttributes();
+                    double mmPerPixel = Double.parseDouble(a.getNamedItem("value").getNodeValue());
+                    if (mmPerPixel <= 0) return Optional.empty();
+                    dpi = Optional.of(25.4 / mmPerPixel);
+                }
+                double value = dpi.get();
+                // 72/96 are screen defaults that say nothing about print size; outside 50–4800 is a broken header
+                if (Math.abs(value - 72) < 0.5 || Math.abs(value - 96) < 0.5) return Optional.empty();
+                if (value < MIN_SANE_DPI || value > MAX_SANE_DPI) return Optional.empty();
+                return Optional.of(value);
             } finally {
                 r.dispose();
             }
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    /** Stored resolutions outside this range are broken headers, not real print sizes. */
+    static final double MIN_SANE_DPI = 50, MAX_SANE_DPI = 4800;
+
+    /**
+     * PNG: reads the pHYs chunk from the PNG's own metadata. The JDK's standard ("javax_imageio_1.0") view of a PNG
+     * reports HorizontalPixelSize as pixels per mm instead of mm per pixel, which turns 600 DPI into about 1 DPI.
+     */
+    private static Optional<Double> pngDpi(IIOMetadata metadata) {
+        if (!"javax_imageio_png_1.0".equals(metadata.getNativeMetadataFormatName())) return Optional.empty();
+        Node pHYs = find(metadata.getAsTree("javax_imageio_png_1.0"), "pHYs");
+        if (pHYs == null) return Optional.empty();
+        NamedNodeMap attributes = pHYs.getAttributes();
+        Node unit = attributes.getNamedItem("unitSpecifier");
+        if (unit == null || !"meter".equals(unit.getNodeValue())) return Optional.empty();
+        double pixelsPerMeter = Double.parseDouble(attributes.getNamedItem("pixelsPerUnitXAxis").getNodeValue());
+        return pixelsPerMeter > 0 ? Optional.of(pixelsPerMeter * 0.0254) : Optional.empty();
     }
 
     private static Node find(Node n, String name) {

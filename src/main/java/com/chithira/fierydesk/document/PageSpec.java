@@ -1,14 +1,24 @@
 package com.chithira.fierydesk.document;
 
 /**
- * Target page for an image. Width/height 0 means "original size": the page is
- * made exactly as big as the image at {@link #ORIGINAL_DPI}.
+ * Target page for an image. Width/height 0 means "actual size": the page is made exactly as big as
+ * the image at {@code originalDpi} (the DPI stored in the file, or {@link #ORIGINAL_DPI}).
  */
-public record PageSpec(double widthInch, double heightInch, Fit fit, boolean autoRotate) {
+public record PageSpec(double widthInch, double heightInch, Fit fit, boolean autoRotate, double originalDpi) {
     public enum Fit { FIT, FILL }
 
     public static final double POINTS_PER_INCH = 72.0;
+    /** DPI used for an image's actual size when the file stores none. */
     public static final int ORIGINAL_DPI = 300;
+
+    public PageSpec(double widthInch, double heightInch, Fit fit, boolean autoRotate) {
+        this(widthInch, heightInch, fit, autoRotate, ORIGINAL_DPI);
+    }
+
+    /** Page = the image's own size at this DPI. */
+    public static PageSpec actualSize(double dpi) {
+        return new PageSpec(0, 0, Fit.FIT, false, dpi > 0 ? dpi : ORIGINAL_DPI);
+    }
 
     public boolean isOriginalSize() { return widthInch <= 0 || heightInch <= 0; }
 
@@ -18,9 +28,9 @@ public record PageSpec(double widthInch, double heightInch, Fit fit, boolean aut
 
     public Layout layout(int imgW, int imgH) {
         if (isOriginalSize()) {
-            float w = (float) (imgW * POINTS_PER_INCH / ORIGINAL_DPI);
-            float h = (float) (imgH * POINTS_PER_INCH / ORIGINAL_DPI);
-            return new Layout(w, h, 0, 0, w, h, false, ORIGINAL_DPI, false, false);
+            float w = (float) (imgW * POINTS_PER_INCH / originalDpi);
+            float h = (float) (imgH * POINTS_PER_INCH / originalDpi);
+            return new Layout(w, h, 0, 0, w, h, false, (int) Math.round(originalDpi), false, false);
         }
         float pageW = (float) (widthInch * POINTS_PER_INCH);
         float pageH = (float) (heightInch * POINTS_PER_INCH);

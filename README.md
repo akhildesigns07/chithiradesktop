@@ -327,11 +327,33 @@ two choices and is safe to delete.
 |---|---|
 | Fit to paper | Whole image visible; white margins if proportions differ |
 | Fill paper | Covers the sheet; edges cropped |
-| Actual size @300 DPI | Page = image size; the Fiery places it on the chosen paper |
+| Actual size – page size = file size | Page = the file's own size, and the Fiery is told that page size (see below) |
 
 Landscape images are rotated automatically to match portrait paper.
 The quality column turns red below the "Block below DPI" setting (default 200);
 those files can only be sent with "Allow low resolution" ticked.
+
+## Actual size – page size = file size
+
+Choose **Actual size – page size = file size** under Image sizing to print a file at exactly its own size, e.g. a
+3.5 × 2 in visiting card or a 13 × 19 in poster, instead of fitting it to the paper. The app does three things:
+
+1. **Reads the file's size.** Images use pixels ÷ the DPI stored in the file (JPG, PNG, TIFF …), or 300 DPI when
+   none is stored. PDFs use the first page, turned if the page is rotated. PostScript uses its bounding box.
+   The waiting window shows it under the preview, for example "page 3.5 × 2 in (89 × 51 mm) – sent to the Fiery as the page size".
+2. **Makes the page that size.** Images become a PDF page of exactly that size. PDF, PostScript and TIFF files are sent unchanged.
+3. **Tells the Fiery** the page size with job attributes. The Paper Catalog entry (`pcmid`) is still sent for the stock:
+
+```properties
+api.page-size-attributes=PageSize,EFPrintSize   # blank = send none
+api.page-size-unit=in                             # in, mm or pt
+api.page-size-format={w}x{h}                      # e.g. 3.5x2 or 13x19
+```
+
+**Confirm once on your Fiery.** Send a small card in this mode, open it in Command WorkStation and compare with
+`GET /live/api/v5/jobs/{id}`. If your Fiery wants another name or format for custom sizes, change the three keys
+above; no rebuild is needed. The log and the job list show what was sent, e.g. `PageSize, EFPrintSize=3.5x2`.
+Imposed and front/back jobs use the paper's size, so this option doesn't apply to them.
 
 ## Log file
 

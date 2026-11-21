@@ -1,0 +1,5 @@
+/target/
+/mock-fiery/target/
+/.idea/
+/logs/print-hub.log
+/data/printhub.mv.db

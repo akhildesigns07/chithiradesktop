@@ -8,6 +8,7 @@ import com.chithira.fierydesk.core.SheetMaker;
 import com.chithira.fierydesk.core.Sizing;
 import com.chithira.fierydesk.document.DocumentNormalizer;
 import com.chithira.fierydesk.document.FileKind;
+import com.chithira.fierydesk.document.FilePageSize;
 import com.chithira.fierydesk.document.PageSpec;
 import com.chithira.fierydesk.driver.DriverBatch;
 import com.chithira.fierydesk.driver.DriverPrintOptions;
@@ -45,6 +46,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -208,6 +210,8 @@ final class PendingJobsWindow extends JFrame {
         paperBox.addActionListener(e -> { updatePaperDetails(); refresh(); });
         printerBox.addActionListener(e -> loadDriverPapers());
         driverPaperBox.addActionListener(e -> refresh());
+        sizingBox.setToolTipText("Actual size: the page is the file's own size (image at its stored DPI, else 300; PDF: its page) "
+                + "and the Fiery is told that page size. Fit and Fill place images on the chosen paper.");
         sizingBox.addActionListener(e -> refresh());
         combineBox.addActionListener(e -> updateButtons());
         allowLowRes.addActionListener(e -> updateButtons());
@@ -1017,6 +1021,7 @@ final class PendingJobsWindow extends JFrame {
         if (e.px != null) info.append(", ").append(e.px.width).append(" × ").append(e.px.height).append(" px");
         info.append(", ").append(humanSize(e.size)).append("</html>");
         fileInfo.setText(info.toString());
+        if (sizing() == Sizing.ACTUAL && !needsSheet(e)) showFilePageSize(e, info.toString(), token);
 
         boolean sheetView = needsSheet(e);
         SheetMaker.Plan plan = sheetView ? planFor(e) : null;
@@ -1069,7 +1074,9 @@ final class PendingJobsWindow extends JFrame {
 
     // ================================================================== quality
 
-    private PageSpec currentSpec() {
+    /** Where this file's image lands: on the chosen paper, or at its actual size (its own stored DPI). */
+    private PageSpec currentSpec(Entry e) {
+        if (sizing() == Sizing.ACTUAL) return Sizing.ACTUAL.pageSpec(null, e.file);
         if (method() == SendMethod.DRIVER) {
             DriverPaper dp = (DriverPaper) driverPaperBox.getSelectedItem();
             double[] inches = dp == null ? null : DriverPrinter.inches(dp.media()).orElse(null);
@@ -1084,13 +1091,34 @@ final class PendingJobsWindow extends JFrame {
         return !e.kind.isPrintReady() && cfg.imageMode == AppConfig.ImageMode.CONVERT_TO_PDF;
     }
 
+    /**
+     * "Actual size": adds the page size that will be sent to the Fiery to the file line, e.g.
+     * "page 3.5 × 2 in (89 × 51 mm)". Measured in the background (a big PDF takes a moment).
+     */
+    private void showFilePageSize(Entry e, String fileLine, int token) {
+        new SwingWorker<Optional<FilePageSize>, Void>() {
+            @Override protected Optional<FilePageSize> doInBackground() { return FilePageSize.of(e.file); }
+
+            @Override protected void done() {
+                if (token != previewToken) return;          // another file was selected meanwhile
+                try {
+                    String page = get().map(size -> "page " + size.label() + " – sent to the Fiery as the page size")
+                            .orElse("page size unknown – the Fiery uses the paper's size");
+                    fileInfo.setText(fileLine.replace("</html>", "<br>" + page + "</html>"));
+                } catch (Exception ignored) {
+                    // leave the file line as it is
+                }
+            }
+        }.execute();
+    }
+
     private Integer dpiOf(Entry e) {
         if (needsSheet(e)) {
             SheetMaker.Plan p = planFor(e);
             return p.ok() ? p.dpi() : null;
         }
         if (!isPlaced(e)) return null;
-        return currentSpec().layout(e.px.width, e.px.height).dpi();
+        return currentSpec(e).layout(e.px.width, e.px.height).dpi();
     }
 
     private String qualityText(Entry e) {
@@ -1113,7 +1141,7 @@ final class PendingJobsWindow extends JFrame {
             if (e.px == null) return "Unreadable image";
             if (cfg.imageMode == AppConfig.ImageMode.SEND_ORIGINAL) return "Sent unconverted";
         }
-        PageSpec.Layout l = currentSpec().layout(e.px.width, e.px.height);
+        PageSpec.Layout l = currentSpec(e).layout(e.px.width, e.px.height);
         StringBuilder sb = new StringBuilder().append(l.dpi()).append(" DPI");
         if (l.rotate()) sb.append(", rotated");
         if (l.cropped()) sb.append(", cropped");
