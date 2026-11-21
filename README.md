@@ -132,7 +132,7 @@ whole app can be tested on a laptop with no risk to real jobs.
   attributes are checked. Self-signed HTTPS certificate, sessions that expire.
 * **Raw printing on port 9100.** Add a Windows printer with a PostScript driver on a
   *Standard TCP/IP port → localhost → RAW 9100*, and the two driver methods can be tested too.
-* **Print and Delete buttons** on each job: **Print** sets it to Printing, then Printed after 15 seconds. **Delete** removes it, and the API answers 404, like a job deleted in Command WorkStation. These let you test the Print Hub's status tracking.
+* **Print and Delete buttons** on each job: **Print** sets it to Printing, then Printed after 5 seconds. **Delete** removes it, and the API answers 404, like a job deleted in Command WorkStation. These let you test the Print Hub's status tracking.
 * **Hold-queue page** at `https://localhost:8443/`: every job with title, paper, copies, two-sided,
   attributes, **page previews** (check imposition and front/back by eye) and a download link.
 * **Test switches:** go offline, slow responses, reject the next job, server error, expire sessions.

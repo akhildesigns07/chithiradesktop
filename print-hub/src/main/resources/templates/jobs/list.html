@@ -3,7 +3,7 @@
 <head th:replace="~{fragments/layout :: head('Print jobs')}"></head>
 <body>
 <nav th:replace="~{fragments/layout :: nav}"></nav>
-<main class="container-fluid px-4">
+<main class="container-fluid px-4" data-live th:attr="data-statuses=${liveStatuses},data-latest-id=${latestJobId}">
     <div th:replace="~{fragments/layout :: flash}"></div>
     <h1 class="h3 mb-2">Print jobs</h1>
     <div th:replace="~{fragments/jobs :: fieryBanner}"></div>
@@ -53,5 +53,6 @@
     </nav>
 </main>
 <th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<script th:src="@{/js/live-status.js}"></script>
 </body>
 </html>

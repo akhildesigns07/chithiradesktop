@@ -4,6 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:text="${title} + ' · Print Hub'">Print Hub</title>
+    <script>
+        /* light or dark, following the operating system (Bootstrap 5.3 data-bs-theme) */
+        (function () {
+            var query = window.matchMedia('(prefers-color-scheme: dark)');
+            function apply() { document.documentElement.setAttribute('data-bs-theme', query.matches ? 'dark' : 'light'); }
+            apply();
+            query.addEventListener('change', apply);
+        })();
+    </script>
     <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.3/css/bootstrap.min.css}">
     <link rel="stylesheet" th:href="@{/css/hub.css}">
 </head>
@@ -55,6 +64,11 @@
 
 <th:block th:fragment="scripts">
     <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
+</th:block>
+
+<th:block th:fragment="chartScripts">
+    <script th:src="@{/webjars/chart.js/4.4.9/dist/chart.umd.js}"></script>
+    <script th:src="@{/js/dashboard.js}"></script>
 </th:block>
 
 </body>

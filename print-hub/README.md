@@ -11,7 +11,7 @@ accounts to manage customers, enter printed and waste counts, and see dashboards
 | 1 | Logins, roles, page access, desktops and API keys, customers (web and API), audit log | **done** |
 | 2 | Desktop link: customer picker and quick add, job push with an offline outbox | **done** |
 | 3 | Job tracking: Fiery status poll every 60 s, print-room printed and waste counts, paper catalog | **done** |
-| 4 | Dashboards: overall, customer, paper, print, waste | next |
+| 4 | Dashboards: overall, customer, paper, print, waste | **done** |
 | 5 | Reports, bills, payment reminders, customer portal, paper inventory (stub packages and feature flags exist) | |
 
 ## Run it
@@ -47,9 +47,17 @@ printhub:
     password: ${PRINTHUB_FIERY_PASSWORD}
 ```
 
-Every `poll-seconds` (default 60), the hub asks the Fiery for each job still on it (`GET /jobs/{id}`) and moves the
-job on. A job counts as deleted only after **two "not found" answers in a row** (`missing-checks-before-removed`),
-so one network hiccup never closes a job. The Paper Catalog is read every `paper-sync-hours` (default 6), and on
+Every `poll-seconds` (default **10**, minimum 5), the hub asks the Fiery for each job still on it (`GET /jobs/{id}`)
+and moves the job on. A new job is also checked about **3 s after the desktop reports it**, so "Held" shows almost
+at once. A job counts as deleted only after **two "not found" answers in a row** (`missing-checks-before-removed`),
+so one network hiccup never closes a job. The second check comes **5 s** after the first miss rather than a whole
+interval later. **Check now** on a job page asks the Fiery about that job immediately.
+
+The job list, job page and print room **refresh themselves**: every 5 s they ask the hub whether a job on screen
+changed (or a new job arrived) and reload if so. They never reload while someone is typing counts; they wait
+until that's saved or the field is left. A small "● Live" note in the corner shows the last check.
+
+Typical times with the mock Fiery: Sent → Held about 1–3 s, Print → Printed about 10 s, Delete → Awaiting counts about 10 s. The Paper Catalog is read every `paper-sync-hours` (default 6), and on
 demand with **Sync from Fiery** on the Paper catalog page.
 
 **Confirm on your Fiery once.** Hold a job, print it, and compare with `GET /live/api/v5/jobs/{id}`. Set
@@ -76,6 +84,25 @@ Desktop reports ─▶ SENT ─▶ HELD ─▶ PRINTING ─▶ PRINTED ─▶ (d
   (`printhub.print-room.waste-reasons`). Counts can be entered from Printed onwards and corrected later; every
   correction keeps the old and new numbers in the audit log.
 * The **customer page** shows the jobs, printed sheets, and waste sheets and %, and the **paper catalog page** shows usage per paper.
+
+## Dashboards
+
+| Page | Shows |
+|---|---|
+| **Overall** (start page `/`) | printed sheets (headline), waste and waste %, sheets sent, jobs waiting for counts, failed sends; printed and waste per day; waste % per day; top customers; papers |
+| **Prints** `/dashboards/prints` | sheets sent per day, printed and waste per day, jobs by status, per desktop, per send method, per front-staff operator |
+| **Papers** `/dashboards/papers` | printed and waste per paper, waste % per paper, sheets per day (one paper with the Paper filter) |
+| **Waste** `/dashboards/waste` | waste sheets and %, top reason, waste % per day, waste by reason, paper, operator, customer and desktop, jobs with the most waste |
+| **Customers** `/dashboards/customers` | ranking of customers; click one for their own dashboard (per day, papers used) |
+
+* **Filters** (one row above the charts): quick ranges (today, 7 / 30 / 90 days, this or last month), from and to
+  dates, paper, desktop, and customer (by clicking one). The default is the last 30 days, and the longest range is 400 days.
+* **What counts:** printed and waste include only jobs whose counts the print room has entered. Sheets sent counts
+  every job that reached the Fiery or the printer. Days are by the date the job was sent.
+* **Colours:** printed sheets are always blue and waste is always orange, on every chart. Both colours were checked
+  for colour-blind readers in light and dark mode. The pages follow the computer's light or dark setting. Every chart
+  has a hover tooltip and a **Show as table** view. Chart.js is served from the jar, so no internet is needed.
+* Each dashboard is its own page in **Admin → Page access**. By default Front staff and Printing room can view them all.
 
 ## Roles and access
 
@@ -125,7 +152,7 @@ Errors are JSON: `{"error": "...", "fields": {...}}`.
 | `jobs` | Print jobs, status rules, counts, timeline, `/api/v1/jobs`, job list and print-room pages |
 | `fiery` | Fiery API client, status mapping, 60-second poller |
 | `papers` | Paper Catalog synced from the Fiery, paper page with usage |
-| `dashboard` | Phase 4 |
+| `dashboard` | Dashboard figures (one query per page, totals worked out in Java), chart specs, dashboard pages |
 | `billing`, `inventory`, `reports`, `notifications`, `portal` | Planned modules (feature flags in `application.yml`) |
 
 Rules: each module owns its entities, service, controllers and migrations. Modules talk through services or

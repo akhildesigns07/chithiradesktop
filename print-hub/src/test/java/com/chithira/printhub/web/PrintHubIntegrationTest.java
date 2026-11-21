@@ -147,7 +147,10 @@ class PrintHubIntegrationTest {
                                 "E:FRONT_STAFF:CUSTOMERS", "V:PRINT_ROOM:CUSTOMERS",
                                 "E:FRONT_STAFF:PRINT_JOBS", "E:PRINT_ROOM:PRINT_JOBS", "E:PRINT_ROOM:PRINT_ROOM",
                                 "V:FRONT_STAFF:WASTE_DASHBOARD", "V:PRINT_ROOM:WASTE_DASHBOARD",
-                                "V:FRONT_STAFF:PAPERS", "E:PRINT_ROOM:PAPERS"))
+                                "V:FRONT_STAFF:PAPERS", "E:PRINT_ROOM:PAPERS",
+                                "V:FRONT_STAFF:PRINT_DASHBOARD", "V:PRINT_ROOM:PRINT_DASHBOARD",
+                                "V:FRONT_STAFF:PAPER_DASHBOARD", "V:PRINT_ROOM:PAPER_DASHBOARD",
+                                "V:FRONT_STAFF:CUSTOMER_DASHBOARD", "V:PRINT_ROOM:CUSTOMER_DASHBOARD"))
                 .andExpect(status().is3xxRedirection());
         mvc.perform(get("/customers").with(user(printRoom))).andExpect(status().isOk());
     }

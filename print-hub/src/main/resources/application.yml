@@ -24,6 +24,10 @@ spring:
     enabled: true
   thymeleaf:
     cache: true
+  task:
+    scheduling:
+      pool:
+        size: 2         # Fiery status poll + quick checks + paper sync
 
 printhub:
   # Name shown in the page header
@@ -47,7 +51,9 @@ printhub:
     password: test
     # Fiery servers use a self-signed certificate (shop network only)
     trust-self-signed-certificate: true
-    poll-seconds: 60
+    # How often every job still on the Fiery is checked (minimum 5). New jobs are also checked
+    # ~3 s after the desktop reports them, and a job that seems deleted is re-checked after 5 s.
+    poll-seconds: 10
     # Re-read the paper catalog this often (also: "Sync from Fiery" on the Paper catalog page)
     paper-sync-hours: 6
     # Where the job's state is in the answer of GET /jobs/{id} (dotted path)

@@ -4,7 +4,7 @@
 </head>
 <body>
 <nav th:replace="~{fragments/layout :: nav}"></nav>
-<main class="container-fluid px-4">
+<main class="container-fluid px-4" data-live th:attr="data-statuses=${liveStatuses},data-open-jobs=${openJobs}">
     <div th:replace="~{fragments/layout :: flash}"></div>
     <div class="d-flex justify-content-between align-items-center">
         <h1 class="h3 mb-2">Print room</h1>
@@ -72,5 +72,6 @@
     </table>
 </main>
 <th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<script th:src="@{/js/live-status.js}"></script>
 </body>
 </html>

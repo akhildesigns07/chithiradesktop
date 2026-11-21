@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Overall dashboard')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4 pb-4" th:with="t=${data.totals}">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <h1 class="h3 mb-2">Overall dashboard</h1>
+    <div th:replace="~{fragments/dashboard :: filters}"></div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-4">
+            <div class="card stat hero h-100"><div class="card-body">
+                <div class="stat-label">Printed sheets</div>
+                <div class="stat-value" th:text="${#numbers.formatInteger(t.printed, 1, 'COMMA')}">0</div>
+                <div class="stat-sub" th:text="${t.countedJobs} + ' counted job(s) of ' + ${t.jobsSent} + ' sent, ' + ${filter.days()} + ' day(s)'"></div>
+            </div></div>
+        </div>
+        <div class="col-6 col-lg-2"><div th:replace="~{fragments/dashboard :: tile('Waste sheets', ${#numbers.formatInteger(t.waste, 1, 'COMMA')}, ${#numbers.formatDecimal(t.wastePercent(), 1, 1)} + ' % of counted sheets')}"></div></div>
+        <div class="col-6 col-lg-2"><div th:replace="~{fragments/dashboard :: tile('Sheets sent', ${#numbers.formatInteger(t.sheetsSent, 1, 'COMMA')}, ${t.jobsSent} + ' job(s)')}"></div></div>
+        <div class="col-6 col-lg-2">
+            <a class="card stat h-100" th:href="@{/print-room}" title="Open the print room"><div class="card-body py-2">
+                <div class="stat-label">Waiting for counts</div>
+                <div class="stat-value" th:text="${data.workload.awaitingCounts}">0</div>
+                <div class="stat-sub" th:text="${data.workload.onFiery} + ' on the Fiery now'"></div></div></a>
+        </div>
+        <div class="col-6 col-lg-2"><div th:replace="~{fragments/dashboard :: tile('Failed sends', ${t.failed}, ${t.cancelled} + ' cancelled')}"></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-8"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Printed and waste sheets per day</h2>
+            <div class="chart-note mb-2">Stacked: printed (blue) and waste (orange)</div>
+            <div th:replace="~{fragments/dashboard :: canvas('daily', 'Printed and waste sheets per day', true)}"></div>
+            <div th:replace="~{fragments/dashboard :: dailyTable(${data.days})}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-4"><div class="card chart-card h-100"><div class="card-body">
+            <h2>Waste % per day</h2>
+            <div class="chart-note mb-2">Waste ÷ (printed + waste); days without counts are left out</div>
+            <div th:replace="~{fragments/dashboard :: canvas('wastePercent', 'Waste percent per day', true)}"></div>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <div class="d-flex justify-content-between"><h2>Top customers</h2>
+                <a class="small" th:if="${@access.canView('CUSTOMER_DASHBOARD')}"
+                   th:href="@{/dashboards/customers(from=${filter.from},to=${filter.to})}">Customer dashboard →</a></div>
+            <div class="chart-note mb-2">Top 10 by printed sheets</div>
+            <div th:replace="~{fragments/dashboard :: canvas('customers', 'Printed and waste sheets for the top customers', false)}"></div>
+            <th:block th:with="link=${@access.canView('CUSTOMER_DASHBOARD')} ? '/dashboards/customers' : null"><div th:replace="~{fragments/dashboard :: groupTable(${data.byCustomer}, ${link}, 'customerId')}"></div></th:block>
+        </div></div></div>
+        <div class="col-12 col-xl-6"><div class="card chart-card h-100"><div class="card-body">
+            <div class="d-flex justify-content-between"><h2>Papers</h2>
+                <a class="small" th:if="${@access.canView('PAPER_DASHBOARD')}"
+                   th:href="@{/dashboards/papers(from=${filter.from},to=${filter.to})}">Paper dashboard →</a></div>
+            <div class="chart-note mb-2">Top 10 by printed sheets</div>
+            <div th:replace="~{fragments/dashboard :: canvas('papers', 'Printed and waste sheets per paper', false)}"></div>
+            <th:block th:with="link=${@access.canView('PAPER_DASHBOARD')} ? '/dashboards/papers' : null"><div th:replace="~{fragments/dashboard :: groupTable(${data.byPaper}, ${link}, 'paper')}"></div></th:block>
+        </div></div></div>
+    </div>
+    <p th:replace="~{fragments/dashboard :: countingNote}"></p>
+
+    <div th:if="${recent}">
+        <h2 class="h5 mt-4">Latest activity</h2>
+        <table class="table table-sm">
+            <tr th:each="a : ${recent}">
+                <td class="text-nowrap small" th:text="${@fmt.dt(a.at)}"></td>
+                <td class="small" th:text="${a.actorName}"></td>
+                <td><span class="badge text-bg-secondary" th:text="${a.action}"></span></td>
+                <td class="small" th:text="${a.summary}"></td>
+            </tr>
+        </table>
+        <a class="small" th:href="@{/admin/audit}">Full audit log →</a>
+    </div>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+<th:block th:replace="~{fragments/layout :: chartScripts}"></th:block>
+</body>
+</html>

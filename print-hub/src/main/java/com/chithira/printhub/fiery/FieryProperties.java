@@ -17,7 +17,7 @@ public class FieryProperties {
     private String username = "";
     private String password = "";
     private boolean trustSelfSignedCertificate = true;
-    private int pollSeconds = 60;
+    private int pollSeconds = 10;
     private int paperSyncHours = 6;
     private int connectTimeoutSeconds = 10;
     private int requestTimeoutSeconds = 30;
@@ -54,7 +54,7 @@ public class FieryProperties {
     public boolean isTrustSelfSignedCertificate() { return trustSelfSignedCertificate; }
     public void setTrustSelfSignedCertificate(boolean trust) { this.trustSelfSignedCertificate = trust; }
     public int getPollSeconds() { return pollSeconds; }
-    public void setPollSeconds(int pollSeconds) { this.pollSeconds = Math.max(10, pollSeconds); }
+    public void setPollSeconds(int pollSeconds) { this.pollSeconds = Math.max(5, pollSeconds); }
     public int getPaperSyncHours() { return paperSyncHours; }
     public void setPaperSyncHours(int paperSyncHours) { this.paperSyncHours = Math.max(1, paperSyncHours); }
     public int getConnectTimeoutSeconds() { return connectTimeoutSeconds; }

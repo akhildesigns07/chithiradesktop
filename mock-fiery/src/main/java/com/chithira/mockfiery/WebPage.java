@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 final class WebPage implements HttpHandler {
 
     /** Seconds a job stays "Printing" after the Print button before it becomes "Printed". */
-    static final int PRINT_SECONDS = 15;
+    static final int PRINT_SECONDS = 5;
 
     private final MockState s;
     private final ScheduledExecutorService printer = Executors.newSingleThreadScheduledExecutor(task -> {

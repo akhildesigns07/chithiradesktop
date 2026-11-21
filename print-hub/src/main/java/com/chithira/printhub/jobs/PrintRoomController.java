@@ -6,6 +6,9 @@ import com.chithira.printhub.common.PageKey;
 import com.chithira.printhub.fiery.FieryProperties;
 import com.chithira.printhub.fiery.PollerHealth;
 import org.springframework.stereotype.Controller;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -40,6 +43,10 @@ public class PrintRoomController {
         model.addAttribute("jobs", jobs);
         model.addAttribute("fieryConfigured", fieryProperties.isConfigured());
         model.addAttribute("poller", pollerHealth);
+        List<PrintJob> open = new ArrayList<>(jobs.waitingForCounts());
+        open.addAll(jobs.beingPrinted());
+        model.addAttribute("liveStatuses", PrintJobService.encodeStatuses(open));
+        model.addAttribute("openJobs", open.size());
         return "jobs/print-room";
     }
 

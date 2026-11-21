@@ -19,7 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -110,6 +113,35 @@ public class PrintJobService {
     }
 
     public List<String> wasteReasons() { return printRoom.wasteReasons(); }
+
+    /**
+     * What open pages poll every few seconds: the status of the jobs they show, how many jobs the print
+     * room has open, and the newest job id.
+     */
+    public LiveStatus liveStatus(Collection<Long> jobIds) {
+        Map<String, String> statuses = new LinkedHashMap<>();
+        if (!jobIds.isEmpty()) {
+            jobs.findAllById(jobIds).forEach(job -> statuses.put(String.valueOf(job.getId()), job.getStatus().name()));
+        }
+        Set<PrintJobStatus> open = EnumSet.copyOf(BEING_PRINTED);
+        open.addAll(WAITING_FOR_COUNTS);
+        return new LiveStatus(statuses, jobs.countByStatusIn(open), jobs.latestId());
+    }
+
+    /** See {@link #liveStatus}. */
+    public record LiveStatus(Map<String, String> statuses, long openJobs, long latestJobId) {}
+
+    public long latestJobId() { return jobs.latestId(); }
+
+    /** "12:HELD,13:SENT" for a page's {@code data-statuses} (read by live-status.js). */
+    public static String encodeStatuses(Collection<PrintJob> shown) {
+        StringBuilder text = new StringBuilder();
+        for (PrintJob job : shown) {
+            if (!text.isEmpty()) text.append(',');
+            text.append(job.getId()).append(':').append(job.getStatus().name());
+        }
+        return text.toString();
+    }
 
     // ================================================================== from the desktops
 

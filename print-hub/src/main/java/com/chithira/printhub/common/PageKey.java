@@ -15,6 +15,12 @@ import java.util.Map;
 public enum PageKey {
     OVERALL_DASHBOARD("Overall dashboard", "/", "Dashboards", null, true, false,
             Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'V')),
+    PRINT_DASHBOARD("Print dashboard", "/dashboards/prints", "Dashboards", null, true, false,
+            Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'V')),
+    PAPER_DASHBOARD("Paper dashboard", "/dashboards/papers", "Dashboards", null, true, false,
+            Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'V')),
+    CUSTOMER_DASHBOARD("Customer dashboard", "/dashboards/customers", "Dashboards", null, true, false,
+            Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'V')),
     CUSTOMERS("Customers", "/customers", "Customers", null, true, false,
             Map.of(Role.FRONT_STAFF, 'E', Role.PRINT_ROOM, 'V')),
     PRINT_JOBS("Print jobs", "/jobs", "Printing", null, true, false,
@@ -22,7 +28,7 @@ public enum PageKey {
     /** Entering and correcting total printed + waste counts. Print-room staff edit; Admin always. */
     PRINT_ROOM("Print room – printed & waste counts", "/print-room", "Printing", null, true, false,
             Map.of(Role.PRINT_ROOM, 'E')),
-    WASTE_DASHBOARD("Waste dashboard", "/dashboards/waste", "Dashboards", null, false, false,
+    WASTE_DASHBOARD("Waste dashboard", "/dashboards/waste", "Dashboards", null, true, false,
             Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'V')),
     PAPERS("Paper catalog", "/papers", "Printing", null, true, false,
             Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'E')),

@@ -63,4 +63,10 @@ public interface PrintJobRepository extends JpaRepository<PrintJob, Long>, JpaSp
     default List<Object[]> countedTotalsPerPaper() { return totalsPerPaper(PrintJobStatus.COUNTED); }
 
     long countByCustomerId(long customerId);
+
+    long countByStatusIn(Collection<PrintJobStatus> statuses);
+
+    /** Newest job id (0 when there are none), so open pages can notice new jobs. */
+    @Query("select coalesce(max(j.id), 0) from PrintJob j")
+    long latestId();
 }

@@ -1,13 +1,70 @@
-:root { --hub-accent: #1f5fa8; }
-body { background: #f6f7f9; }
-.hub-nav { background: #fff; border-bottom: 1px solid #e3e6ea; }
+/* ------------------------------------------------------------------ tokens
+   Light values first; dark values are their own validated steps (not an automatic flip).
+   The theme follows the OS setting (see the script in fragments/layout.html). */
+:root {
+    --hub-accent: #1f5fa8;
+    --hub-page-bg: #f6f7f9;
+    --hub-nav-bg: #ffffff;
+    --hub-line: #e3e6ea;
+    --chart-surface: #fcfcfb;
+    --chart-grid: #e6e5e1;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --series-1: #2a78d6;      /* printed sheets */
+    --series-2: #eb6834;      /* waste sheets */
+}
+[data-bs-theme="dark"] {
+    --hub-accent: #6da7ec;
+    --hub-page-bg: #121211;
+    --hub-nav-bg: #1a1a19;
+    --hub-line: #2e2e2c;
+    --chart-surface: #1a1a19;
+    --chart-grid: #33332f;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+}
+
+/* ------------------------------------------------------------------ page */
+body { background: var(--hub-page-bg); }
+.hub-nav { background: var(--hub-nav-bg); border-bottom: 1px solid var(--hub-line); }
 .navbar-brand { color: var(--hub-accent) !important; }
 .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 .login-card { width: 100%; max-width: 380px; margin: 16px; }
-.stat .stat-label { font-size: .8rem; color: #6c757d; text-transform: uppercase; letter-spacing: .03em; }
-.stat .stat-value { font-size: 1.9rem; font-weight: 600; color: #212529; }
-.secret-box code { background: #fff; padding: 2px 8px; border-radius: 4px; word-break: break-all; }
+.secret-box code { background: var(--bs-body-bg); padding: 2px 8px; border-radius: 4px; word-break: break-all; }
 .matrix th, .matrix td { text-align: center; vertical-align: middle; }
 .matrix th:first-child, .matrix td:first-child { text-align: left; }
 .json { font-size: .75rem; white-space: pre-wrap; word-break: break-all; max-width: 420px; margin: 0; }
-table.table { background: #fff; }
+table.table { --bs-table-bg: var(--bs-body-bg); }
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* ------------------------------------------------------------------ stat tiles */
+.stat .stat-label { font-size: .8rem; color: var(--text-secondary); }
+.stat .stat-value { font-size: 1.9rem; font-weight: 600; color: var(--text-primary); line-height: 1.15; }
+.stat .stat-sub { font-size: .8rem; color: var(--text-secondary); }
+.stat.hero .stat-value { font-size: 3.25rem; }
+.stat .stat-value.text-value { font-size: 1.15rem; line-height: 1.3; padding: .35rem 0; }
+a.stat { text-decoration: none; }
+a.stat:hover { border-color: var(--hub-accent); }
+
+/* ------------------------------------------------------------------ dashboards */
+.filter-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; }
+.filter-bar .form-control, .filter-bar .form-select { width: auto; }
+.quick-ranges { display: flex; flex-wrap: wrap; gap: .25rem; }
+.chart-card { background: var(--chart-surface); }
+.chart-card h2 { font-size: 1rem; margin: 0; color: var(--text-primary); }
+.chart-card .chart-note { font-size: .8rem; color: var(--text-secondary); }
+.chart-box { position: relative; height: 280px; }
+.chart-box.tall { height: 340px; }
+.chart-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-secondary); font-size: .9rem; }
+.table-view summary { font-size: .8rem; color: var(--text-secondary); cursor: pointer; margin-top: .5rem; }
+.legend-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: baseline; }
+.legend-key.printed { background: var(--series-1); }
+.legend-key.waste { background: var(--series-2); }
+
+/* ------------------------------------------------------------------ live status note (live-status.js) */
+.live-note { position: fixed; right: 12px; bottom: 12px; z-index: 1050; font-size: .75rem;
+    padding: 2px 10px; border-radius: 10px; background: var(--hub-nav-bg); color: var(--text-secondary);
+    border: 1px solid var(--hub-line); }
+.live-note.waiting { color: var(--text-primary); border-color: var(--series-2); }

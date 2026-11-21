@@ -7,7 +7,9 @@ import com.chithira.printhub.common.BusinessException;
 import com.chithira.printhub.common.PageKey;
 import com.chithira.printhub.common.TextUtils;
 import com.chithira.printhub.fiery.FieryProperties;
+import com.chithira.printhub.fiery.JobStatusPoller;
 import com.chithira.printhub.fiery.PollerHealth;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.time.ZoneId;
 
 /**
@@ -32,14 +35,16 @@ public class JobController {
     private final AccessService access;
     private final PollerHealth pollerHealth;
     private final FieryProperties fieryProperties;
+    private final JobStatusPoller poller;
 
     public JobController(PrintJobService jobs, AuditLogRepository auditRepository, AccessService access,
-                         PollerHealth pollerHealth, FieryProperties fieryProperties) {
+                         PollerHealth pollerHealth, FieryProperties fieryProperties, JobStatusPoller poller) {
         this.jobs = jobs;
         this.auditRepository = auditRepository;
         this.access = access;
         this.pollerHealth = pollerHealth;
         this.fieryProperties = fieryProperties;
+        this.poller = poller;
     }
 
     @GetMapping
@@ -52,13 +57,16 @@ public class JobController {
         JobSearch search = new JobSearch(TextUtils.clean(q), status, customerId,
                 from == null ? null : from.atStartOfDay(zone).toInstant(),
                 to == null ? null : to.plusDays(1).atStartOfDay(zone).toInstant());
-        model.addAttribute("result", jobs.search(search, page));
+        Page<PrintJob> result = jobs.search(search, page);
+        model.addAttribute("result", result);
         model.addAttribute("q", q);
         model.addAttribute("status", status);
         model.addAttribute("customerId", customerId);
         model.addAttribute("from", from);
         model.addAttribute("to", to);
         model.addAttribute("statuses", PrintJobStatus.values());
+        model.addAttribute("liveStatuses", PrintJobService.encodeStatuses(result.getContent()));
+        model.addAttribute("latestJobId", page == 0 ? jobs.latestJobId() : null);
         addFieryStatus(model);
         return "jobs/list";
     }
@@ -72,6 +80,9 @@ public class JobController {
                 PageRequest.of(0, 30)).getContent());
         model.addAttribute("canCount", job.getStatus().acceptsCounts() && access.can(PageKey.PRINT_ROOM, true));
         model.addAttribute("canCancel", !job.getStatus().isClosed() && access.can(PageKey.PRINT_JOBS, true));
+        model.addAttribute("canCheck", job.getStatus().isOnFiery() && job.getFieryJobId() != null
+                && fieryProperties.isConfigured() && access.can(PageKey.PRINT_JOBS, true));
+        model.addAttribute("liveStatuses", PrintJobService.encodeStatuses(List.of(job)));
         model.addAttribute("overdue", jobs.isCountsOverdue(job));
         if (!model.containsAttribute("counts")) model.addAttribute("counts", JobCounts.of(job));
         model.addAttribute("wasteReasons", jobs.wasteReasons());
@@ -89,6 +100,14 @@ public class JobController {
             redirect.addFlashAttribute("error", exception.getMessage());
             redirect.addFlashAttribute("counts", counts);
         }
+        return "redirect:/jobs/" + id;
+    }
+
+    /** "Check now": asks the Fiery about this job immediately instead of waiting for the next poll. */
+    @PostMapping("/{id}/check")
+    public String checkNow(@PathVariable long id, RedirectAttributes redirect) {
+        JobStatusPoller.CheckResult result = poller.checkNow(id);
+        redirect.addFlashAttribute(result.message().startsWith("Fiery not reachable") ? "error" : "ok", result.message());
         return "redirect:/jobs/" + id;
     }
 
