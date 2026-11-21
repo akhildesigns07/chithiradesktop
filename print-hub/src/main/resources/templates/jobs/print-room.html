@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Print room')}">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-2">Print room</h1>
+        <a class="btn btn-sm btn-outline-secondary" th:href="@{/print-room}">↻ Refresh</a>
+    </div>
+    <div th:replace="~{fragments/jobs :: fieryBanner}"></div>
+
+    <h2 class="h5 mt-3">Waiting for counts <span class="badge text-bg-warning" th:text="${waiting.size()}"></span></h2>
+    <p class="small text-body-secondary mb-2">Enter the good sheets and the waste for each job once it has printed.
+        Oldest first.</p>
+    <table class="table align-middle">
+        <thead><tr><th>Job</th><th>Customer</th><th>Paper</th><th class="text-end">Sent</th><th>Status</th><th>Printed · Waste · Reason</th></tr></thead>
+        <tbody>
+        <tr th:each="job : ${waiting}" th:classappend="${jobs.isCountsOverdue(job)} ? 'table-danger' : ''">
+            <td><a th:href="@{/jobs/{id}(id=${job.id})}" th:text="${job.fileName}"></a>
+                <div class="small text-body-secondary"><span th:text="${@fmt.dt(job.sentAt)}"></span>
+                    <span th:if="${job.fieryJobId}" th:text="'· Fiery ' + ${job.fieryJobId}"></span>
+                    <span th:if="${job.duplex}">· two-sided</span>
+                    <span th:if="${job.imposed}" th:text="'· ' + ${job.piecesPerSheet} + '-up, ' + ${job.quantityPieces} + ' pcs'"></span></div>
+                <span class="badge text-bg-danger" th:if="${jobs.isCountsOverdue(job)}">overdue</span></td>
+            <td th:text="${job.customer} ? ${job.customer.name} : '–'"></td>
+            <td class="small" th:text="${job.paperName} ?: '–'"></td>
+            <td class="text-end" th:text="${job.sheetsRequested}"></td>
+            <td><span th:replace="~{fragments/jobs :: status(${job})}"></span></td>
+            <td th:if="${@access.canEdit('PRINT_ROOM')}">
+                <div th:replace="~{fragments/jobs :: countsForm(@{/print-room/{id}/counts(id=${job.id})}, ${job}, null, ${wasteReasons}, true)}"></div></td>
+            <td th:unless="${@access.canEdit('PRINT_ROOM')}" class="small text-body-secondary">view only</td>
+        </tr>
+        <tr th:if="${waiting.empty}"><td colspan="6" class="text-center text-body-secondary py-3">Nothing waiting – all counted</td></tr>
+        </tbody>
+    </table>
+
+    <h2 class="h5 mt-4">On the Fiery now <span class="badge text-bg-secondary" th:text="${printing.size()}"></span></h2>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Job</th><th>Customer</th><th>Paper</th><th class="text-end">Sheets</th><th>Fiery job</th><th>Status</th></tr></thead>
+        <tbody>
+        <tr th:each="job : ${printing}">
+            <td><a th:href="@{/jobs/{id}(id=${job.id})}" th:text="${job.fileName}"></a>
+                <span class="small text-body-secondary" th:text="${@fmt.ago(job.sentAt)}"></span></td>
+            <td th:text="${job.customer} ? ${job.customer.name} : '–'"></td>
+            <td class="small" th:text="${job.paperName} ?: '–'"></td>
+            <td class="text-end" th:text="${job.sheetsRequested}"></td>
+            <td class="small" th:text="${job.fieryJobId}"></td>
+            <td><span th:replace="~{fragments/jobs :: status(${job})}"></span></td>
+        </tr>
+        <tr th:if="${printing.empty}"><td colspan="6" class="text-center text-body-secondary py-3">No jobs in the Hold queue</td></tr>
+        </tbody>
+    </table>
+
+    <h2 class="h5 mt-4">Counted in the last 24 hours</h2>
+    <p class="small text-body-secondary mb-2">A mistake? Open the job and correct its counts (the change is kept in the audit log).</p>
+    <table class="table table-sm align-middle">
+        <thead><tr><th>Job</th><th>Customer</th><th class="text-end">Printed</th><th class="text-end">Waste</th><th>Reason</th><th>Counted</th></tr></thead>
+        <tbody>
+        <tr th:each="job : ${counted}">
+            <td><a th:href="@{/jobs/{id}(id=${job.id})}" th:text="${job.fileName}"></a></td>
+            <td th:text="${job.customer} ? ${job.customer.name} : '–'"></td>
+            <td class="text-end" th:text="${job.printedCount}"></td>
+            <td class="text-end" th:classappend="${job.wasteCount > 0} ? 'text-danger' : ''" th:text="${job.wasteCount}"></td>
+            <td class="small" th:text="${job.wasteReason} ?: ''"></td>
+            <td class="small"><span th:text="${job.countedBy}"></span>, <span th:text="${@fmt.ago(job.countedAt)}"></span></td>
+        </tr>
+        <tr th:if="${counted.empty}"><td colspan="6" class="text-center text-body-secondary py-3">None yet</td></tr>
+        </tbody>
+    </table>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

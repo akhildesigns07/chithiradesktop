@@ -10,8 +10,8 @@ accounts to manage customers, enter printed and waste counts, and see dashboards
 |---|---|---|
 | 1 | Logins, roles, page access, desktops and API keys, customers (web and API), audit log | **done** |
 | 2 | Desktop link: customer picker and quick add, job push with an offline outbox | **done** |
-| 3 | Job tracking: Fiery status poll every 60 s, print-room printed and waste counts, paper catalog | next |
-| 4 | Dashboards: overall, customer, paper, print, waste | |
+| 3 | Job tracking: Fiery status poll every 60 s, print-room printed and waste counts, paper catalog | **done** |
+| 4 | Dashboards: overall, customer, paper, print, waste | next |
 | 5 | Reports, bills, payment reminders, customer portal, paper inventory (stub packages and feature flags exist) | |
 
 ## Run it
@@ -32,6 +32,50 @@ java -jar print-hub/target/print-hub.jar --spring.profiles.active=dev
 Flyway creates and upgrades the tables on start (`src/main/resources/db/migration`).
 
 **First start:** the log prints a one-time password for `admin`. Log in at `http://<host>:8080`, and you will be asked to choose a new password.
+
+## Fiery connection (job status and paper catalog)
+
+In `application.yml`, under `printhub.fiery`:
+
+```yaml
+printhub:
+  fiery:
+    enabled: true
+    base-url: https://192.168.1.50
+    api-key: ${PRINTHUB_FIERY_API_KEY}
+    username: ${PRINTHUB_FIERY_USER}
+    password: ${PRINTHUB_FIERY_PASSWORD}
+```
+
+Every `poll-seconds` (default 60), the hub asks the Fiery for each job still on it (`GET /jobs/{id}`) and moves the
+job on. A job counts as deleted only after **two "not found" answers in a row** (`missing-checks-before-removed`),
+so one network hiccup never closes a job. The Paper Catalog is read every `paper-sync-hours` (default 6), and on
+demand with **Sync from Fiery** on the Paper catalog page.
+
+**Confirm on your Fiery once.** Hold a job, print it, and compare with `GET /live/api/v5/jobs/{id}`. Set
+`status-path` (where the state is, default `data.item.state`) and add any state you see to `status-map`, for
+example `printing: PRINTING`. Keys with spaces go in brackets: `"[done printing]": PRINTED`. Unknown states are
+shown on the job (hover the status badge) but don't change it. The status line on the job and print-room pages
+shows when the Fiery was last checked, or why it can't be reached.
+
+## Job life cycle
+
+```
+Desktop reports ─▶ SENT ─▶ HELD ─▶ PRINTING ─▶ PRINTED ─▶ (deleted on Fiery) REMOVED ─▶ AWAITING_COUNTS ─▶ COUNTED
+                   (driver jobs start at AWAITING_COUNTS · rejected sends are FAILED · staff can CANCEL an open job)
+```
+
+* Statuses only move forward (Printing → Held is allowed when a print is stopped). Each move is kept in the
+  job's **timeline** with what caused it (desktop, poller or user) and in the audit log.
+* **Print room page** (`/print-room`) has three lists:
+  - **Waiting for counts:** oldest first. A job is flagged overdue after `printhub.print-room.counts-overdue-hours` (default 12).
+  - **On the Fiery now.**
+  - **Counted in the last 24 hours:** open a job there to correct its counts.
+
+  Staff enter the **total printed** (good sheets) and the **waste** sheets. Waste needs a reason
+  (`printhub.print-room.waste-reasons`). Counts can be entered from Printed onwards and corrected later; every
+  correction keeps the old and new numbers in the audit log.
+* The **customer page** shows the jobs, printed sheets, and waste sheets and %, and the **paper catalog page** shows usage per paper.
 
 ## Roles and access
 
@@ -78,8 +122,10 @@ Errors are JSON: `{"error": "...", "fields": {...}}`.
 | `customers` | Customer records, web pages, desktop API |
 | `audit` | Append-only audit log and the audit page search |
 | `web` | Page controllers, shared page model, template helpers, API error handling |
-| `jobs` | Print jobs reported by the desktops, status history, `/api/v1/jobs` (poller and counts pages in phase 3) |
-| `papers`, `fiery`, `dashboard` | Phases 3–4 |
+| `jobs` | Print jobs, status rules, counts, timeline, `/api/v1/jobs`, job list and print-room pages |
+| `fiery` | Fiery API client, status mapping, 60-second poller |
+| `papers` | Paper Catalog synced from the Fiery, paper page with usage |
+| `dashboard` | Phase 4 |
 | `billing`, `inventory`, `reports`, `notifications`, `portal` | Planned modules (feature flags in `application.yml`) |
 
 Rules: each module owns its entities, service, controllers and migrations. Modules talk through services or

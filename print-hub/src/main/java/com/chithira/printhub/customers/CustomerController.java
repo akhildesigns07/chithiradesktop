@@ -4,6 +4,7 @@ import com.chithira.printhub.audit.AuditLogRepository;
 import com.chithira.printhub.auth.RequiresPage;
 import com.chithira.printhub.common.BusinessException;
 import com.chithira.printhub.common.PageKey;
+import com.chithira.printhub.jobs.PrintJobService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
@@ -22,11 +23,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class CustomerController {
 
     private final CustomerService customers;
-    private final AuditLogRepository auditRepo;
+    private final AuditLogRepository auditRepository;
+    private final PrintJobService jobs;
 
-    public CustomerController(CustomerService customers, AuditLogRepository auditRepo) {
+    public CustomerController(CustomerService customers, AuditLogRepository auditRepository, PrintJobService jobs) {
         this.customers = customers;
-        this.auditRepo = auditRepo;
+        this.auditRepository = auditRepository;
+        this.jobs = jobs;
     }
 
     @GetMapping
@@ -61,7 +64,10 @@ public class CustomerController {
     @GetMapping("/{id}")
     public String view(@PathVariable long id, Model model) {
         model.addAttribute("c", customers.get(id));
-        model.addAttribute("history", auditRepo.findByEntityTypeAndEntityIdOrderByIdDesc("CUSTOMER", String.valueOf(id),
+        model.addAttribute("totals", jobs.totalsForCustomer(id));
+        model.addAttribute("jobCount", jobs.jobCountForCustomer(id));
+        model.addAttribute("recentJobs", jobs.recentForCustomer(id));
+        model.addAttribute("history", auditRepository.findByEntityTypeAndEntityIdOrderByIdDesc("CUSTOMER", String.valueOf(id),
                 PageRequest.of(0, 20)).getContent());
         return "customers/view";
     }

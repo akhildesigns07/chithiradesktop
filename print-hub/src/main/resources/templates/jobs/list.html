@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Print jobs')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+<main class="container-fluid px-4">
+    <div th:replace="~{fragments/layout :: flash}"></div>
+    <h1 class="h3 mb-2">Print jobs</h1>
+    <div th:replace="~{fragments/jobs :: fieryBanner}"></div>
+    <form class="row g-2 mb-3" method="get">
+        <div class="col-md-3"><input class="form-control" name="q" th:value="${q}" placeholder="File, customer, code or Fiery job id"></div>
+        <div class="col-md-2">
+            <select class="form-select" name="status">
+                <option value="">All statuses</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.label()}" th:selected="${s == status}"></option>
+            </select>
+        </div>
+        <div class="col-md-2"><input class="form-control" type="date" name="from" th:value="${from}" title="Sent from"></div>
+        <div class="col-md-2"><input class="form-control" type="date" name="to" th:value="${to}" title="Sent until"></div>
+        <input type="hidden" name="customerId" th:value="${customerId}" th:if="${customerId}">
+        <div class="col-auto"><button class="btn btn-outline-primary">Filter</button></div>
+        <div class="col-auto" th:if="${customerId}"><a class="btn btn-link" th:href="@{/jobs}">All customers</a></div>
+    </form>
+    <table class="table table-hover align-middle">
+        <thead><tr><th>Sent</th><th>File</th><th>Customer</th><th>Paper</th><th class="text-end">Sheets</th>
+            <th>Fiery job</th><th>Status</th><th class="text-end">Printed</th><th class="text-end">Waste</th><th>Desktop</th></tr></thead>
+        <tbody>
+        <tr th:each="job : ${result.content}">
+            <td class="small text-nowrap" th:text="${@fmt.dt(job.sentAt)}"></td>
+            <td><a th:href="@{/jobs/{id}(id=${job.id})}" th:text="${job.fileName}"></a>
+                <div class="small text-body-secondary" th:if="${job.backFileName}" th:text="'back: ' + ${job.backFileName}"></div>
+                <span class="badge text-bg-light" th:if="${job.imposed}" th:text="${job.quantityPieces} + ' pcs'"></span></td>
+            <td><a th:if="${job.customer}" th:href="@{/customers/{id}(id=${job.customer.id})}" th:text="${job.customer.name}"></a>
+                <span th:unless="${job.customer}" class="text-body-secondary">–</span></td>
+            <td class="small" th:text="${job.paperName} ?: '–'"></td>
+            <td class="text-end" th:text="${job.sheetsRequested}"></td>
+            <td class="small" th:text="${job.fieryJobId} ?: 'driver'"></td>
+            <td><span th:replace="~{fragments/jobs :: status(${job})}"></span></td>
+            <td class="text-end" th:text="${job.printedCount} ?: ''"></td>
+            <td class="text-end" th:classappend="${job.wasteCount != null and job.wasteCount > 0} ? 'text-danger' : ''"
+                th:text="${job.wasteCount} ?: ''"></td>
+            <td class="small text-body-secondary" th:text="${job.device.name}"></td>
+        </tr>
+        <tr th:if="${result.empty}"><td colspan="10" class="text-center text-body-secondary py-4">No jobs found</td></tr>
+        </tbody>
+    </table>
+    <nav th:if="${result.totalPages > 1}" class="d-flex gap-2 align-items-center mb-4">
+        <a class="btn btn-sm btn-outline-secondary" th:if="${result.hasPrevious()}"
+           th:href="@{/jobs(q=${q},status=${status},customerId=${customerId},from=${from},to=${to},page=${result.number - 1})}">← Newer</a>
+        <span class="small" th:text="'Page ' + ${result.number + 1} + ' of ' + ${result.totalPages} + ' · ' + ${result.totalElements} + ' jobs'"></span>
+        <a class="btn btn-sm btn-outline-secondary" th:if="${result.hasNext()}"
+           th:href="@{/jobs(q=${q},status=${status},customerId=${customerId},from=${from},to=${to},page=${result.number + 1})}">Older →</a>
+    </nav>
+</main>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

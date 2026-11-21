@@ -17,14 +17,14 @@ public enum PageKey {
             Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'V')),
     CUSTOMERS("Customers", "/customers", "Customers", null, true, false,
             Map.of(Role.FRONT_STAFF, 'E', Role.PRINT_ROOM, 'V')),
-    PRINT_JOBS("Print jobs", "/jobs", "Printing", null, false, false,
+    PRINT_JOBS("Print jobs", "/jobs", "Printing", null, true, false,
             Map.of(Role.FRONT_STAFF, 'E', Role.PRINT_ROOM, 'E')),
     /** Entering and correcting total printed + waste counts. Print-room staff edit; Admin always. */
-    PRINT_ROOM("Print room – printed & waste counts", "/print-room", "Printing", null, false, false,
+    PRINT_ROOM("Print room – printed & waste counts", "/print-room", "Printing", null, true, false,
             Map.of(Role.PRINT_ROOM, 'E')),
     WASTE_DASHBOARD("Waste dashboard", "/dashboards/waste", "Dashboards", null, false, false,
             Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'V')),
-    PAPERS("Paper catalog", "/papers", "Printing", null, false, false,
+    PAPERS("Paper catalog", "/papers", "Printing", null, true, false,
             Map.of(Role.FRONT_STAFF, 'V', Role.PRINT_ROOM, 'E')),
 
     // planned modules (feature flags in application.yml)

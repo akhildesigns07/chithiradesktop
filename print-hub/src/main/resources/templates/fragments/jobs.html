@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Status badge of a print job -->
+<span th:fragment="status(job)" class="badge" th:classappend="${job.status.badge()}" th:text="${job.status.label()}"
+      th:title="${job.fieryStateRaw} ? 'Fiery: ' + ${job.fieryStateRaw} : ''">Status</span>
+
+<!-- Whether the hub can follow jobs on the Fiery -->
+<div th:fragment="fieryBanner" class="small mb-3">
+    <div th:unless="${fieryConfigured}" class="alert alert-secondary py-2 mb-0">
+        Fiery status tracking is off (<code>printhub.fiery.enabled</code>). Jobs sent with the API stay
+        “Sent” until someone enters counts.
+    </div>
+    <div th:if="${fieryConfigured}" class="text-body-secondary">
+        <span th:if="${poller.lastRunAt == null}">Fiery status check starts shortly…</span>
+        <span th:if="${poller.lastRunAt != null and poller.healthy}" class="text-success">
+            ● Fiery checked <span th:text="${@fmt.ago(poller.lastRunAt)}"></span>
+            · <span th:text="${poller.lastJobsChecked}"></span> job(s) followed</span>
+        <span th:if="${poller.lastRunAt != null and !poller.healthy}" class="text-danger">
+            ● Fiery not reachable (<span th:text="${poller.lastError}"></span>) –
+            last good check <span th:text="${@fmt.ago(poller.lastSuccessAt)}"></span></span>
+    </div>
+</div>
+
+<!-- Printed / waste counts form (print-room page and job page) -->
+<form th:fragment="countsForm(action, job, counts, reasons, compact)" method="post" th:action="${action}"
+      class="row g-2 align-items-end" th:classappend="${compact} ? 'flex-nowrap' : ''">
+    <div class="col-auto">
+        <label class="form-label small mb-0" th:unless="${compact}">Total printed (good sheets)</label>
+        <input class="form-control form-control-sm" type="number" name="printed" min="0" required style="width: 7rem"
+               th:value="${counts?.printed}" th:placeholder="${job.sheetsRequested} + ' sent'" title="Good sheets">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-0" th:unless="${compact}">Waste sheets</label>
+        <input class="form-control form-control-sm" type="number" name="waste" min="0" required style="width: 6rem"
+               th:value="${counts?.waste} ?: 0" title="Wasted sheets">
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-0" th:unless="${compact}">Waste reason</label>
+        <select class="form-select form-select-sm" name="wasteReason" title="Needed when there is waste">
+            <option value="">— reason (if waste) —</option>
+            <option th:each="reason : ${reasons}" th:value="${reason}" th:text="${reason}"
+                    th:selected="${counts?.wasteReason == reason}"></option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-primary" th:text="${job.status.name() == 'COUNTED'} ? 'Correct' : 'Save'">Save</button>
+    </div>
+</form>
+
+</body>
+</html>

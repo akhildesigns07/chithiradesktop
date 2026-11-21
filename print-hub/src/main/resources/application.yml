@@ -36,6 +36,53 @@ printhub:
     payment-reminders: false
     inventory: false
 
+  # ---------------------------------------------------------------- Fiery (job status + paper catalog)
+  # The hub follows every job sent with the API until the Fiery has printed and deleted it.
+  fiery:
+    enabled: true
+    base-url: https://localhost:8443
+    base-path: /live/api/v5
+    api-key: MOCK-KEY
+    username: test
+    password: test
+    # Fiery servers use a self-signed certificate (shop network only)
+    trust-self-signed-certificate: true
+    poll-seconds: 60
+    # Re-read the paper catalog this often (also: "Sync from Fiery" on the Paper catalog page)
+    paper-sync-hours: 6
+    # Where the job's state is in the answer of GET /jobs/{id} (dotted path)
+    status-path: data.item.state
+    # Fiery state (lower case) → hub status. CONFIRM on your Fiery: hold a job, print it and
+    # compare with GET /live/api/v5/jobs/{id}; add any other state you see here.
+    status-map:
+      held: HELD
+      hold: HELD
+      waiting: HELD
+      spooled: HELD
+      processing: HELD
+      processed: HELD
+      printing: PRINTING
+      rip: PRINTING
+      printed: PRINTED
+      "[done printing]": PRINTED     # keys with spaces must be written in [brackets]
+      completed: PRINTED
+    # A job counts as deleted on the Fiery only after this many "not found" answers in a row
+    missing-checks-before-removed: 2
+
+  # ---------------------------------------------------------------- Print room
+  print-room:
+    # Jobs waiting longer than this for their printed / waste counts are flagged
+    counts-overdue-hours: 12
+    waste-reasons:
+      - Misprint
+      - Colour mismatch
+      - Paper jam
+      - Registration (front / back)
+      - Test / calibration print
+      - Customer changed artwork
+      - Cutting damage
+      - Other
+
 logging:
   file:
     name: logs/print-hub.log

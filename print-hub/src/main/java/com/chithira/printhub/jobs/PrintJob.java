@@ -172,6 +172,23 @@ public class PrintJob {
     public PrintJobStatus getStatus() { return status; }
     void setStatus(PrintJobStatus status) { this.status = status; }
     public String getFieryStateRaw() { return fieryStateRaw; }
+    void setFieryStateRaw(String fieryStateRaw) { this.fieryStateRaw = fieryStateRaw; }
+    void setPrintedAt(Instant printedAt) { this.printedAt = printedAt; }
+    void setRemovedAt(Instant removedAt) { this.removedAt = removedAt; }
+
+    /** Records the print room's counts. */
+    void setCounts(int printedCount, int wasteCount, String wasteReason, String countedBy) {
+        this.printedCount = printedCount;
+        this.wasteCount = wasteCount;
+        this.wasteReason = wasteReason;
+        this.countedBy = countedBy;
+        this.countedAt = Instant.now();
+    }
+
+    /** Sheets used in total: printed + waste (null until counted). */
+    public Integer getTotalSheets() {
+        return printedCount == null ? null : printedCount + (wasteCount == null ? 0 : wasteCount);
+    }
     public String getErrorMessage() { return errorMessage; }
     void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public Instant getSentAt() { return sentAt; }
