@@ -51,7 +51,7 @@ Customer's card.jpg ─▶ app works out the piece size ─▶ fits as many as p
 | Rows × columns | As many as fit, trying pieces upright and turned 90°. Override with Columns / Rows (0 = automatic). |
 | Doesn't fit? | Never an error: a piece bigger than the paper, or more rows × columns than fit, is **shrunk (keeping its proportions) until it fits**, centred. |
 | Sheet | **Portrait** or **Landscape**: the paper is turned this way whatever the shape of the file (remembered for the next job) |
-| Layout option | **Fit rows × columns to the paper** (default: set Columns, Rows, both or neither; pieces are resized up or down, keeping their proportions, to fill the paper) or **Piece size** (real size, shrink only if needed) |
+| Layout option | **Piece size** (default: real size, e.g. a 90 × 50 mm card stays 90 × 50 mm; shrunk only if it doesn't fit) or **Fit rows × columns to the paper** (set Columns, Rows, both or neither; pieces are resized up or down, keeping their proportions, to fill the paper – for stickers and labels) |
 | Artwork | Always fitted **inside** each piece: never cropped, stretched or over the edge (`impose.crop-to-fill=true` to crop instead) |
 | Alignment | Grid centred; margin, gap and bleed adjustable in the window (all start at 0; crop-mark space is always kept) |
 | Crop marks | **Always** on the front sheet, at every cut line; **never** on the back |

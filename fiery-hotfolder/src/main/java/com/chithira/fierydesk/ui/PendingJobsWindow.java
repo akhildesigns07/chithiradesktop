@@ -195,7 +195,7 @@ final class PendingJobsWindow extends JFrame {
         instructions.setWrapStyleWord(true);
         applyImposeDefaults();
         imposeBox.setSelected(cfg.lastImpose);
-        modeBox.setSelectedItem(ImposeSettings.Mode.FIT_GRID);
+        modeBox.setSelectedItem(ImposeSettings.Mode.PIECE_SIZE);   // exact size (cards, ID cards); Fit rows × columns is a choice
         orientationBox.setSelectedItem(cfg.imposeOrientation);
 
         Dimension combo = new Dimension(290, methodBox.getPreferredSize().height);
