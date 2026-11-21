@@ -25,13 +25,15 @@ jobs:
           cache: maven
           cache-dependency-path: print-hub/pom.xml
 
+      # jpackage normally strips java.exe from the bundled Java (--strip-native-commands); the Windows service
+      # starts the hub with runtime\bin\java.exe, so --jlink-options keeps it while still trimming the rest.
       - name: Build Print Hub with its own Java
         shell: cmd
         run: |
           call mvn -q -B package || exit /b 1
           mkdir target\jpackage-input
           copy /y target\print-hub.jar target\jpackage-input\
-          jpackage --type app-image --name "Print Hub" --app-version 1.0.0 --vendor "Chithira Printers" --icon assets\app.ico --win-console --input target\jpackage-input --main-jar print-hub.jar --main-class org.springframework.boot.loader.launch.JarLauncher --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.zipfs,jdk.management,jdk.naming.dns,jdk.localedata --dest dist || exit /b 1
+          jpackage --type app-image --name "Print Hub" --app-version 1.0.0 --vendor "Chithira Printers" --icon assets\app.ico --win-console --input target\jpackage-input --main-jar print-hub.jar --main-class org.springframework.boot.loader.launch.JarLauncher --add-modules java.se,jdk.unsupported,jdk.crypto.ec,jdk.zipfs,jdk.management,jdk.naming.dns,jdk.localedata --jlink-options "--strip-debug --no-man-pages --no-header-files" --dest dist || exit /b 1
           xcopy /e /i /y packaging\windows "dist\Print Hub" || exit /b 1
 
       - name: Add the Windows service wrapper (WinSW 2.12.0)
