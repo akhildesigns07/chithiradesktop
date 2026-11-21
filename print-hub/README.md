@@ -9,8 +9,8 @@ accounts to manage customers, enter printed and waste counts, and see dashboards
 | Phase | What | State |
 |---|---|---|
 | 1 | Logins, roles, page access, desktops and API keys, customers (web and API), audit log | **done** |
-| 2 | Desktop link: customer picker and quick add, job push with an offline outbox | next |
-| 3 | Job tracking: Fiery status poll every 60 s, print-room printed and waste counts, paper catalog | |
+| 2 | Desktop link: customer picker and quick add, job push with an offline outbox | **done** |
+| 3 | Job tracking: Fiery status poll every 60 s, print-room printed and waste counts, paper catalog | next |
 | 4 | Dashboards: overall, customer, paper, print, waste | |
 | 5 | Reports, bills, payment reminders, customer portal, paper inventory (stub packages and feature flags exist) | |
 
@@ -56,6 +56,15 @@ replaces it, and **Revoke** stops it. A desktop also sends `X-Operator` (the Win
 | GET | `/customers` | All active customers. `?q=` searches; `?updatedSince=<serverTime>` returns only changes |
 | GET | `/customers/{id}` | One customer |
 | POST | `/customers` | Quick add `{name, phone, email, company}`. Returns `409` with the existing customer if the phone is already used |
+| POST | `/jobs` | Report a job after each send (see below). Returns `201` for a new job, or `200` with `"duplicate": true` for a retry |
+
+**Job report** (`POST /api/v1/jobs`): `clientJobUuid` (made by the desktop, so retries are safe), `outcome`
+(`SENT`/`FAILED`), `fieryJobId` (required for API sends), `customerId`, `sendMethod` (`API`, `DRIVER_API`,
+`DRIVER`), `fileName`, `backFileName`, `jobName`, `paperId`, `paperName`, `imposed`, `quantity`, `piecesPerSheet`,
+`sheets`, `duplex`, `instructions`, `operator`, `sentAt`, `error`.
+
+Where a job starts: `SENT` (followed on the Fiery from phase 3), `AWAITING_COUNTS` for driver jobs (there is no
+Fiery job id to follow), and `FAILED` for rejected sends. Every report gets a status-history row and an audit row.
 
 Errors are JSON: `{"error": "...", "fields": {...}}`.
 
@@ -69,7 +78,8 @@ Errors are JSON: `{"error": "...", "fields": {...}}`.
 | `customers` | Customer records, web pages, desktop API |
 | `audit` | Append-only audit log and the audit page search |
 | `web` | Page controllers, shared page model, template helpers, API error handling |
-| `jobs`, `papers`, `fiery`, `dashboard` | Phases 3–4 |
+| `jobs` | Print jobs reported by the desktops, status history, `/api/v1/jobs` (poller and counts pages in phase 3) |
+| `papers`, `fiery`, `dashboard` | Phases 3–4 |
 | `billing`, `inventory`, `reports`, `notifications`, `portal` | Planned modules (feature flags in `application.yml`) |
 
 Rules: each module owns its entities, service, controllers and migrations. Modules talk through services or

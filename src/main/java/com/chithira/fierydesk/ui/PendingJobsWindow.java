@@ -14,6 +14,9 @@ import com.chithira.fierydesk.driver.DriverPrintOptions;
 import com.chithira.fierydesk.driver.DriverPrinter;
 import com.chithira.fierydesk.driver.PostScriptConverter;
 import com.chithira.fierydesk.fiery.Paper;
+import com.chithira.fierydesk.hub.HubConnection;
+import com.chithira.fierydesk.hub.HubCustomer;
+import com.chithira.fierydesk.core.CustomerRef;
 import com.chithira.fierydesk.impose.AutoSize;
 import com.chithira.fierydesk.impose.ImposeSettings;
 import com.chithira.fierydesk.impose.Orientation;
@@ -103,6 +106,11 @@ final class PendingJobsWindow extends JFrame {
     private final Consumer<List<Path>> onSkip;
     private final Runnable onRefreshPapers;
 
+    // Print Hub customer for the whole batch
+    private final HubConnection hub;
+    private final CustomerPicker customerPicker;
+    private final JLabel customerLabel = new JLabel("Customer:");
+
     private final List<Entry> entries = new ArrayList<>();
     private final Model model = new Model();
     private final JTable table = new JTable(model);
@@ -163,11 +171,13 @@ final class PendingJobsWindow extends JFrame {
     private int previewToken;
     private boolean updating;
 
-    PendingJobsWindow(AppConfig cfg, Image icon,
+    PendingJobsWindow(AppConfig cfg, Image icon, HubConnection hub,
                       Consumer<List<JobRequest>> onSend, Consumer<DriverBatch> onDriverPrint,
                       Consumer<List<Path>> onSkip, Runnable onRefreshPapers) {
         super("Files waiting for the Fiery");
         this.cfg = cfg;
+        this.hub = hub;
+        this.customerPicker = new CustomerPicker(hub);
         this.onSend = onSend;
         this.onDriverPrint = onDriverPrint;
         this.onSkip = onSkip;
@@ -192,6 +202,7 @@ final class PendingJobsWindow extends JFrame {
         }
 
         setContentPane(buildContent());
+        updateCustomerRow();
 
         methodBox.addActionListener(e -> onMethodChanged());
         paperBox.addActionListener(e -> { updatePaperDetails(); refresh(); });
@@ -260,7 +271,22 @@ final class PendingJobsWindow extends JFrame {
     void setConfig(AppConfig cfg) {
         this.cfg = cfg;
         applyImposeDefaults();
+        updateCustomerRow();
         refresh();
+    }
+
+    /** The Customer row is shown only when the Print Hub is switched on. */
+    void updateCustomerRow() {
+        boolean visible = hub.isEnabled();
+        customerLabel.setVisible(visible);
+        customerPicker.setVisible(visible);
+        customerLabel.setText(hub.isCustomerRequired() ? "Customer *:" : "Customer:");
+    }
+
+    /** The customer chosen for this batch, or null. */
+    private CustomerRef chosenCustomer() {
+        HubCustomer customer = hub.isEnabled() ? customerPicker.selected() : null;
+        return customer == null ? null : customer.toRef();
     }
 
     void setPapers(List<Paper> papers) {
@@ -340,6 +366,7 @@ final class PendingJobsWindow extends JFrame {
         JPanel form = new JPanel(new GridBagLayout());
         GridBagConstraints c = gbc();
         int r = 0;
+        r = row(form, c, r, customerLabel, customerPicker);   // who the job is for (Print Hub)
         r = full(form, c, r, imposePanel);            // most-used first: impose + quantity
         r = full(form, c, r, new JSeparator());
         r = row(form, c, r, new JLabel("Send via:"), methodBox);
@@ -778,6 +805,14 @@ final class PendingJobsWindow extends JFrame {
             return;
         }
 
+        if (hub.isCustomerRequired() && customerPicker.selected() == null) {
+            JOptionPane.showMessageDialog(this, "Choose the customer first.\n\nType part of the name or phone to find them, "
+                    + "or click '+ New' to add a new customer.", "Customer missing", JOptionPane.WARNING_MESSAGE);
+            customerPicker.requestFocusInWindow();
+            return;
+        }
+        CustomerRef customer = chosenCustomer();
+
         List<String> problems = new ArrayList<>();
         List<String> tooLow = new ArrayList<>();
         if (imposeBox.isSelected()) {
@@ -838,7 +873,7 @@ final class PendingJobsWindow extends JFrame {
             }
             resetForm();
             removeFiles(allFiles);
-            onDriverPrint.accept(new DriverBatch(fronts, o, sheets));
+            onDriverPrint.accept(new DriverBatch(fronts, o, sheets, customer));
             return;
         }
 
@@ -853,7 +888,7 @@ final class PendingJobsWindow extends JFrame {
                     ? jobName.getText().trim()
                     : DocumentNormalizer.safeName(e.file.getFileName().toString());
             requests.add(new JobRequest(e.file, name, paper, sizing, n, instructions.getText().trim(),
-                    allowLowRes.isSelected(), converter, needsSheet(e) ? sheetJob(e) : null));
+                    allowLowRes.isSelected(), converter, needsSheet(e) ? sheetJob(e) : null, customer));
         }
         if (!imposeBox.isSelected()) cfg.lastPaperId = paper.id();
         resetForm();
@@ -865,6 +900,7 @@ final class PendingJobsWindow extends JFrame {
         allowLowRes.setSelected(false);
         instructions.setText("");
         copies.setValue(1);
+        customerPicker.clear();
         cols.setValue(0);
         rows.setValue(0);
         quantity.setValue(0);

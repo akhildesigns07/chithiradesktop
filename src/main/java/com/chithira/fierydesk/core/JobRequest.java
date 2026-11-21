@@ -10,9 +10,16 @@ import java.nio.file.Path;
  * @param converter for the DRIVER_API method: the printer whose driver converts the file to
  *                  PostScript (or PostScriptConverter.BUILT_IN); null for the plain API method
  * @param sheet     imposition and/or front + back: the file is first made into a PDF sheet; null otherwise
+ * @param customer  Print Hub customer the job is for; null when the hub is off or no customer was chosen
  */
 public record JobRequest(Path file, String jobName, Paper paper, Sizing sizing, int copies,
-                         String instructions, boolean allowLowRes, String converter, SheetJob sheet) {
+                         String instructions, boolean allowLowRes, String converter, SheetJob sheet,
+                         CustomerRef customer) {
+
+    public JobRequest(Path file, String jobName, Paper paper, Sizing sizing, int copies,
+                      String instructions, boolean allowLowRes, String converter, SheetJob sheet) {
+        this(file, jobName, paper, sizing, copies, instructions, allowLowRes, converter, sheet, null);
+    }
 
     public JobRequest(Path file, String jobName, Paper paper, Sizing sizing, int copies,
                       String instructions, boolean allowLowRes, String converter) {

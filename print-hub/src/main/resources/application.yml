@@ -14,7 +14,7 @@ spring:
     name: print-hub
   datasource:
     url: ${PRINTHUB_DB_URL:jdbc:postgresql://localhost:5432/printhub}
-    username: ${PRINTHUB_DB_USER:admin}
+    username: ${PRINTHUB_DB_USER:postgres}
     password: ${PRINTHUB_DB_PASSWORD:admin}
   jpa:
     open-in-view: false
@@ -48,9 +48,8 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    #url: jdbc:h2:file:./data/printhub;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE
     url: jdbc:postgresql://localhost:5432/printhub
-    username: admin
+    username: postgres
     password: "admin"
   thymeleaf:
     cache: false

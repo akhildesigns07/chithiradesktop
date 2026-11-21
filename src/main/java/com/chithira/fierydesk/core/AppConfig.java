@@ -1,6 +1,8 @@
 package com.chithira.fierydesk.core;
 
 import com.chithira.fierydesk.App;
+import com.chithira.fierydesk.impose.Orientation;
+import com.chithira.fierydesk.impose.Preset;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -86,6 +88,29 @@ public final class AppConfig {
         }
     }
 
+    /**
+     * Connection to the Print Hub web application (customers, job tracking).
+     *
+     * @param enabled          false = the desktop works on its own, as before
+     * @param baseUrl          e.g. http://192.168.1.10:8080
+     * @param apiKey           key from Admin → Desktops & API keys in the hub
+     * @param requireCustomer  true = a customer must be chosen before sending
+     * @param timeout          per request
+     */
+    public record HubSettings(boolean enabled, String baseUrl, String apiKey, boolean requireCustomer, Duration timeout) {
+
+        public static final HubSettings DISABLED = new HubSettings(false, "", "", false, Duration.ofSeconds(10));
+
+        /** True when the hub is switched on and has an address and key. */
+        public boolean isConfigured() { return enabled && !baseUrl.isBlank() && !apiKey.isBlank(); }
+
+        /** Base URL + path, e.g. url("/api/v1/ping"). */
+        public String url(String path) {
+            String base = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+            return base + path;
+        }
+    }
+
     // --------------------------------------------------------------- values
 
     public Path configFile = Path.of(FILE_NAME);
@@ -109,7 +134,7 @@ public final class AppConfig {
     public boolean driverShowPrintDialog = false;
 
     // imposition and front/back
-    public String imposePresets = com.chithira.fierydesk.impose.Preset.DEFAULTS;
+    public String imposePresets = Preset.DEFAULTS;
     public String imposeDefaultPaperId = "5598";
     public double imposeMarginMm = 0;
     public double imposeGapMm = 0;
@@ -123,11 +148,13 @@ public final class AppConfig {
     public String duplexAttributeName = "duplex";
     public String duplexAttributeValue = "true";
     public boolean lastImpose = false;
-    public com.chithira.fierydesk.impose.Orientation imposeOrientation = com.chithira.fierydesk.impose.Orientation.PORTRAIT;
+    public Orientation imposeOrientation = Orientation.PORTRAIT;
 
     // UI memory (state.properties)
     public String lastPaperId = "";
     public Sizing lastSizing = Sizing.FIT;
+
+    public HubSettings hub = HubSettings.DISABLED;
 
     /** Problems found while reading the file (shown to the user). */
     public final List<String> problems = new ArrayList<>();
@@ -191,8 +218,8 @@ public final class AppConfig {
         c.imposeGapMm = decimal(p, "impose.gap-mm", 0, c);
         c.imposeBleedMm = decimal(p, "impose.bleed-mm", 0, c);
         c.imposeAllowRotation = bool(p, "impose.allow-rotation", true, c);
-        c.imposeOrientation = com.chithira.fierydesk.impose.Orientation.parse(
-                p.getProperty("impose.orientation"), com.chithira.fierydesk.impose.Orientation.PORTRAIT);
+        c.imposeOrientation = Orientation.parse(
+                p.getProperty("impose.orientation"), Orientation.PORTRAIT);
         // new key: artwork is fitted inside each piece (never cropped) unless crop-to-fill is switched on
         c.imposeFill = bool(p, "impose.crop-to-fill", false, c);
         c.imposeInfoLine = bool(p, "impose.info-line", true, c);
@@ -201,6 +228,16 @@ public final class AppConfig {
         c.autoPairFrontBack = bool(p, "frontback.auto-pair", true, c);
         c.duplexAttributeName = get(p, "api.duplex-attribute-name", c.duplexAttributeName, c);
         c.duplexAttributeValue = get(p, "api.duplex-attribute-value", c.duplexAttributeValue, c);
+
+        c.hub = new HubSettings(
+                bool(p, "hub.enabled", false, c),
+                get(p, "hub.base-url", "", c),
+                get(p, "hub.api-key", "", c),
+                bool(p, "hub.require-customer", true, c),
+                Duration.ofSeconds(integer(p, "hub.timeout-seconds", 10, c)));
+        if (c.hub.enabled() && !c.hub.isConfigured()) {
+            c.problems.add("hub.enabled=true but hub.base-url or hub.api-key is empty");
+        }
 
         if (!c.fiery.baseUrl().startsWith("https://") && !c.fiery.baseUrl().startsWith("http://")) {
             c.problems.add("fiery.base-url must start with https:// (now: " + c.fiery.baseUrl() + ")");
@@ -259,7 +296,7 @@ public final class AppConfig {
             if (!s.getProperty("lastDriverPrinter", "").isBlank()) driverPrinterName = s.getProperty("lastDriverPrinter");
             if (!s.getProperty("lastDriverPaper", "").isBlank()) driverPaper = s.getProperty("lastDriverPaper");
             lastImpose = Boolean.parseBoolean(s.getProperty("lastImpose", "false"));
-            imposeOrientation = com.chithira.fierydesk.impose.Orientation.parse(
+            imposeOrientation = Orientation.parse(
                     s.getProperty("lastOrientation"), imposeOrientation);
         } catch (Exception ignored) {
             // state is only a convenience
@@ -375,6 +412,17 @@ public final class AppConfig {
                 api.duplex-attribute-name=duplex
                 api.duplex-attribute-value=true
 
+                # ---------------------------------------------------------------- Print Hub (web application)
+                # Customers and job tracking. Register this PC in the hub: Admin > Desktops & API keys
+                hub.enabled=false
+                # Address of the hub on the shop network, e.g. http://192.168.1.10:8080
+                hub.base-url=
+                # API key shown once when the desktop was registered (or ${PRINT_HUB_API_KEY})
+                hub.api-key=
+                # true = staff must choose the customer before sending
+                hub.require-customer=true
+                hub.timeout-seconds=10
+
                 # ---------------------------------------------------------------- Files
                 # Image files (PNG, JPG...): CONVERT_TO_PDF (recommended) or SEND_ORIGINAL
                 # PDF, PostScript and TIFF are always sent unchanged. Queue is always "hold".
@@ -383,7 +431,7 @@ public final class AppConfig {
                 quality.min-dpi=200
                 # Show a warning below this resolution
                 quality.warn-dpi=300
-                """.formatted(hot, com.chithira.fierydesk.impose.Preset.DEFAULTS);
+                """.formatted(hot, Preset.DEFAULTS);
         Files.writeString(file, t, StandardCharsets.UTF_8);
     }
 

@@ -20,8 +20,13 @@ import java.util.List;
  */
 public final class SheetMaker {
 
-    /** The finished PDF and what it contains. */
-    public record Sheets(byte[] pdf, int copies, String summary, Integer dpi, List<String> warnings) {}
+    /**
+     * The finished PDF and what it contains.
+     *
+     * @param copies         sheets to print (copies sent to the Fiery)
+     * @param piecesPerSheet pieces on one sheet when imposed, otherwise 1
+     */
+    public record Sheets(byte[] pdf, int copies, int piecesPerSheet, String summary, Integer dpi, List<String> warnings) {}
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
 
@@ -99,7 +104,8 @@ public final class SheetMaker {
                 j.impose() == null ? 0 : j.impose().backOffsetYmm() * ImposeSettings.PT_PER_MM,
                 plan.slug());
         String summary = plan.summary() + " on " + j.paperName();
-        return new Sheets(pdf, plan.copies(), summary, plan.dpi(), List.copyOf(warnings));
+        int piecesPerSheet = j.impose() == null ? 1 : plan.layout().perSheet();
+        return new Sheets(pdf, plan.copies(), piecesPerSheet, summary, plan.dpi(), List.copyOf(warnings));
     }
 
     private static String Preset_fmt(double mm) {

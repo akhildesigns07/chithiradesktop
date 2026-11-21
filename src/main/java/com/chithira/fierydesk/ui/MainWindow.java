@@ -4,6 +4,8 @@ import com.chithira.fierydesk.core.AppConfig;
 import com.chithira.fierydesk.core.HotFolderWatcher;
 import com.chithira.fierydesk.core.JobLog;
 import com.chithira.fierydesk.core.JobProcessor;
+import com.chithira.fierydesk.hub.HubConnection;
+import com.chithira.fierydesk.hub.JobReport;
 import com.chithira.fierydesk.core.JobRequest;
 import com.chithira.fierydesk.core.PaperCatalog;
 import com.chithira.fierydesk.core.SheetJob;
@@ -52,6 +54,7 @@ public final class MainWindow {
     private final JButton pendingButton = new JButton("Waiting files (0)");
     private final JLabel paperStatus = new JLabel("Paper catalog: not loaded");
     private final JLabel statusLabel = new JLabel("Stopped");
+    private final JLabel hubStatus = new JLabel("Print Hub: off");
     private final DefaultTableModel log = new DefaultTableModel(
             new Object[]{"Time", "File", "Status", "Fiery job", "Details"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
@@ -65,18 +68,23 @@ public final class MainWindow {
     private AppConfig cfg;
     private FieryClient fiery;
     private JobProcessor processor;
+    private HubConnection hub;
     private HotFolderWatcher watcher;
     private PendingJobsWindow pending;
     private TrayIcon tray;
 
     public MainWindow(AppConfig cfg) {
         applyConfig(cfg);
+        hub = new HubConnection(cfg.hub);
         buildUi();
-        pending = new PendingJobsWindow(cfg, appIcon(), this::sendAll, this::printViaDriver, this::skipAll, this::refreshPapers);
+        hub.addStatusListener(status -> SwingUtilities.invokeLater(() -> showHubStatus(status)));
+        showHubStatus(hub.status());
+        pending = new PendingJobsWindow(cfg, appIcon(), hub, this::sendAll, this::printViaDriver, this::skipAll, this::refreshPapers);
     }
 
     public void show() {
         frame.setVisible(true);
+        hub.start();       // customer list + waiting job reports, in the background
 
         // Paper catalog: show the saved copy immediately, then fetch a fresh one from the Fiery
         if (catalog.loadCache()) papersLoaded();
@@ -105,6 +113,9 @@ public final class MainWindow {
         JButton test = new JButton("Test connection");
         JButton refresh = new JButton("Refresh papers");
         JButton openLog = new JButton("Open log file");
+        JButton testHub = new JButton("Test hub");
+        testHub.setToolTipText("Check the Print Hub address and API key (hub.* in the config file)");
+        testHub.addActionListener(e -> testHub());
 
         openFolder.addActionListener(e -> openPath(cfg.hotFolder, true));
         startStop.addActionListener(e -> { if (watcher == null) startWatching(); else stopWatching(); });
@@ -124,6 +135,7 @@ public final class MainWindow {
         row2.add(startStop);
         row2.add(pendingButton);
         row2.add(test);
+        row2.add(testHub);
         row2.add(refresh);
         row2.add(openLog);
         row2.add(editConfig);
@@ -131,6 +143,8 @@ public final class MainWindow {
 
         JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT));
         row3.add(paperStatus);
+        row3.add(new JLabel("   |   "));
+        row3.add(hubStatus);
 
         JPanel row4 = new JPanel(new FlowLayout(FlowLayout.LEFT));
         row4.add(configLabel);
@@ -273,6 +287,7 @@ public final class MainWindow {
                 SwingUtilities.invokeLater(() -> update(r.file(), r.back(), "Sending…", "", r.paper().name()));
                 try {
                     JobProcessor.Result res = p.process(r);
+                    hub.report(JobReport.apiSent(r, res));
                     String details = res.submittedAs()
                             + (res.dpi() != null ? " (" + res.dpi() + " DPI)" : "")
                             + " – " + res.fileAction()
@@ -287,6 +302,7 @@ public final class MainWindow {
                     });
                 } catch (Exception e) {
                     String msg = friendly(e);
+                    hub.report(JobReport.apiFailed(r, msg));
                     SwingUtilities.invokeLater(() -> {
                         update(r.file(), r.back(), "Failed", "", msg + "  (file moved to Failed folder)");
                         forget(r.file());
@@ -340,9 +356,13 @@ public final class MainWindow {
                 long size = sizeOf(front) + (sj.back() == null ? 0 : sizeOf(sj.back()));
                 boolean ok;
                 String message, action;
+                int copiesPrinted = sj.copies();
+                Integer piecesPerSheet = null;
                 Path tmp = null;
                 try {
                     SheetMaker.Sheets sheets = SheetMaker.make(sj, c.minDpi, c.warnDpi);
+                    copiesPrinted = sheets.copies();
+                    piecesPerSheet = sj.impose() == null ? null : sheets.piecesPerSheet();
                     tmp = Files.createTempFile("fiery-sheet-", ".pdf");
                     Files.write(tmp, sheets.pdf());
                     String warning = DriverPrinter.printSheetPdf(job, tmp, front.getFileName().toString(), o, sheets.copies(), sj.duplex());
@@ -360,6 +380,7 @@ public final class MainWindow {
                 }
                 JobLog.driverResult(ok, front, size, o.printerName(), sj.paperName(),
                         sj.impose() != null ? "IMPOSED" : sj.sizing().name(), 0, false, message, action);
+                hub.report(JobReport.driver(front, sj, batch.customer(), sj.paperName(), copiesPrinted, piecesPerSheet, ok, message));
                 boolean done = ok;
                 String details = message + " – " + action;
                 SwingUtilities.invokeLater(() -> {
@@ -387,6 +408,8 @@ public final class MainWindow {
                         }
                         JobLog.driverResult(out.ok(), file, size, o.printerName(), paperLabel, o.sizing().name(),
                                 o.copies(), o.combineIntoOneJob(), out.message(), action);
+                        hub.report(JobReport.driver(file, null, batch.customer(), paperLabel, o.copies(), null,
+                                out.ok(), out.message()));
                         String details = out.message() + " on " + o.printerName() + ", " + paperLabel
                                 + ", " + o.copies() + " cop" + (o.copies() == 1 ? "y" : "ies") + " – " + action;
                         SwingUtilities.invokeLater(() -> {
@@ -454,6 +477,7 @@ public final class MainWindow {
 
         stopWatching();
         applyConfig(fresh);
+        hub.reconfigure(fresh.hub);
         pending.setConfig(fresh);
         folderField.setText(fresh.hotFolder.toString());
         updateConfigLabel();
@@ -483,6 +507,39 @@ public final class MainWindow {
                 + (cfg.driverPrinterName.isBlank() ? "" : " (printer " + cfg.driverPrinterName + ")")
                 + " &nbsp;·&nbsp; image files: " + cfg.imageMode + " &nbsp;·&nbsp; after send: " + cfg.afterSend
                 + " &nbsp;·&nbsp; queue: hold</html>");
+    }
+
+    /** "Test hub": checks the Print Hub address and key, then syncs customers and waiting job reports. */
+    private void testHub() {
+        if (!cfg.hub.isConfigured()) {
+            JOptionPane.showMessageDialog(frame, "The Print Hub is not set up in\n" + cfg.configFile
+                    + "\n\nSet hub.enabled=true, hub.base-url and hub.api-key, save, then click 'Reload config'.",
+                    "Print Hub", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        statusLabel.setText("Testing the Print Hub at " + cfg.hub.baseUrl() + " …");
+        background.submit(() -> {
+            try {
+                String deviceName = hub.test();
+                SwingUtilities.invokeLater(() -> statusLabel.setText("Print Hub OK – this PC is registered as '" + deviceName
+                        + "', " + hub.customers().size() + " customers loaded"));
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    statusLabel.setText("Print Hub test failed");
+                    error("Print Hub", friendly(e));
+                });
+            }
+        });
+    }
+
+    /** Shows the hub state under the toolbar: green connected, grey off, orange offline or key problem. */
+    private void showHubStatus(HubConnection.Status status) {
+        hubStatus.setText(status.text());
+        hubStatus.setForeground(switch (status.state()) {
+            case CONNECTED -> new Color(0, 120, 0);
+            case OFF, CONNECTING -> Color.GRAY;
+            case OFFLINE, KEY_REJECTED -> new Color(180, 80, 0);
+        });
     }
 
     private void testConnection() {
@@ -524,6 +581,7 @@ public final class MainWindow {
     private void exit() {
         stopWatching();
         sender.shutdown();
+        hub.stop();
         try { fiery.logout(); } catch (Exception ignored) {}
         if (tray != null) SystemTray.getSystemTray().remove(tray);
         System.exit(0);

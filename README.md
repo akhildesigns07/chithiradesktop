@@ -95,6 +95,33 @@ api.duplex-attribute-name=duplex
 api.duplex-attribute-value=true
 ```
 
+## Print Hub (customers and job tracking)
+
+When the Print Hub web application (`print-hub/`) runs on the shop network, each desktop can pick the
+**customer** for a batch and report **every job** it sends, so the hub can track prints and waste per customer.
+
+1. In the hub, open **Admin → Desktops & API keys**, register this PC, and copy the key. It is shown only once.
+2. In `fiery-hotfolder.properties`:
+   ```properties
+   hub.enabled=true
+   hub.base-url=http://192.168.1.10:8080
+   hub.api-key=chp_...
+   # true = a customer must be chosen before Send
+   hub.require-customer=true
+   ```
+3. Click **Reload config**, then **Test hub**. The main window shows the hub status: connected, offline, or key rejected.
+
+**In the "Files waiting" window:** the **Customer** row searches the hub's customers by name, phone, company or
+code (C-0042). The list is cached on this PC, so it also works while the hub is offline. **+ New** adds a customer
+to the hub straight away. If the phone number already belongs to a customer, that customer is chosen instead.
+After each send, the customer is cleared so the next batch can't be booked to the wrong person.
+
+**After each send:** the desktop reports the job (file, customer, paper, Fiery job id, copies or sheets, imposed
+quantity, front/back, Windows user) to the hub. Driver-method prints are reported too, without a Fiery job id. Failed
+sends are reported with the error. Reports are first written to `<user home>/.chithira-fiery/outbox/`, then
+delivered in the background. If the hub is down, they wait there and are sent automatically when it is back
+(checked every minute), and printing never waits. Reports the hub refuses move to `outbox/rejected/` with the reason.
+
 ## Mock Fiery Server (test without the real press)
 
 `mock-fiery/` is a small separate program that behaves like your Fiery, so the

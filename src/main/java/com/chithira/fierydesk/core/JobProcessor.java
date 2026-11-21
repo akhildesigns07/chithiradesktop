@@ -30,8 +30,14 @@ import java.util.Optional;
  */
 public final class JobProcessor {
 
+    /**
+     * What happened to one sent job.
+     *
+     * @param copiesSent     copies the Fiery was asked for (sheets when imposed)
+     * @param piecesPerSheet pieces per sheet when imposed, otherwise null
+     */
     public record Result(String jobId, String submittedAs, Integer dpi, List<String> warnings,
-                         String fileAction, String rawResponse) {}
+                         String fileAction, String rawResponse, int copiesSent, Integer piecesPerSheet) {}
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
@@ -63,10 +69,12 @@ public final class JobProcessor {
             PreparedDocument doc;
             int copies = r.copies();
             String sheetInfo = null;
+            Integer piecesPerSheet = null;
             if (r.sheet() != null) {
                 // imposition and/or front + back: always made into a PDF first
                 SheetMaker.Sheets sheets = SheetMaker.make(r.sheet(), minDpi, warnDpi);
                 copies = sheets.copies();
+                piecesPerSheet = r.sheet().impose() == null ? null : sheets.piecesPerSheet();
                 sheetInfo = sheets.summary();
                 doc = new PreparedDocument(sheets.pdf(), DocumentNormalizer.safeName(r.jobName()) + ".pdf",
                         "application/pdf", FileKind.PDF, sheets.dpi(), sheets.warnings());
@@ -93,7 +101,8 @@ public final class JobProcessor {
             if (r.back() != null) action += "; back: " + afterSuccess(r.back());
             String submitted = uploadName + " (" + describe(doc, r) + (sheetInfo == null ? "" : ", " + sheetInfo) + ")";
             JobLog.sent(r, size, submitted, doc.effectiveDpi(), up.jobId(), action, up.rawResponse());
-            return new Result(up.jobId(), submitted, doc.effectiveDpi(), doc.warnings(), action, up.rawResponse());
+            return new Result(up.jobId(), submitted, doc.effectiveDpi(), doc.warnings(), action, up.rawResponse(),
+                    copies, piecesPerSheet);
 
         } catch (Exception e) {
             String response = e instanceof FieryException fe ? fe.responseBody() : null;
